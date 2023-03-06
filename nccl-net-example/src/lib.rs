@@ -265,8 +265,14 @@ unsafe extern "C" fn test(
     done: *mut c_int,
     sizes: *mut c_int,
 ) -> ncclResult_t {
-    *done = 0;
     let request: &mut Request = &mut *request.cast();
+
+    log!(
+        ncclDebugLogLevel::NCCL_LOG_TRACE,
+        sys::NCCL_NET,
+        "homa::irecv(request: TODO)",
+    );
+
     match request {
         Request::Send(req) => match req.comm.socket.recv(
             req.id,
@@ -281,6 +287,7 @@ unsafe extern "C" fn test(
                 return ncclResult_t::ncclSuccess;
             }
             Err(err) if err.kind() == ErrorKind::WouldBlock => {
+                *done = 0;
                 return ncclResult_t::ncclSuccess;
             }
             Err(err) => panic!("{}", err),
@@ -312,6 +319,7 @@ unsafe extern "C" fn test(
                 return ncclResult_t::ncclSuccess;
             }
             Err(err) if err.kind() == ErrorKind::WouldBlock => {
+                *done = 0;
                 return ncclResult_t::ncclSuccess;
             }
             Err(err) => panic!("{}", err),

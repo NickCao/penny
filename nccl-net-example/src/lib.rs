@@ -199,23 +199,28 @@ unsafe extern "C" fn isend(
     send_comm: *mut c_void,
     data: *mut c_void,
     size: c_int,
-    _tag: c_int,
+    tag: c_int,
     _mhandle: *mut c_void,
     request: *mut *mut c_void,
 ) -> ncclResult_t {
-    log!(ncclDebugLogLevel::NCCL_LOG_TRACE, sys::NCCL_NET, "isend");
+    log!(
+        ncclDebugLogLevel::NCCL_LOG_TRACE,
+        sys::NCCL_NET,
+        "homa::isend(data: {:?}, size: {}, tag: {})",
+        data,
+        size,
+        tag
+    );
+
     let comm = &mut *(send_comm as *mut SendComm);
+
     let size: usize = size.try_into().unwrap();
-    let id = comm
-        .socket
-        .send(
-            comm.remote,
-            &[IoSlice::new(slice::from_raw_parts(data.cast(), size))],
-            0,
-            0,
-        )
-        .unwrap();
+    let data = IoSlice::new(slice::from_raw_parts(data.cast(), size));
+
+    let id = comm.socket.send(comm.remote, &[data], 0, 0).unwrap();
+
     *request = Box::into_raw(Box::new(Request::Send(SendRequest { id, comm, size }))).cast();
+
     ncclResult_t::ncclSuccess
 }
 
@@ -224,27 +229,31 @@ unsafe extern "C" fn irecv(
     n: c_int,
     data: *mut *mut c_void,
     sizes: *mut c_int,
-    _tags: *mut c_int,
+    tags: *mut c_int,
     _mhandles: *mut *mut c_void,
     request: *mut *mut c_void,
 ) -> ncclResult_t {
-    let comm = &mut *(recv_comm as *mut RecvComm);
-
     let n: usize = n.try_into().unwrap();
-    if n != 1 {
-        return ncclResult_t::ncclInternalError;
-    }
-
     let data = slice::from_raw_parts(data, n);
     let sizes = slice::from_raw_parts(sizes, n);
-    let buffer = slice::from_raw_parts_mut(data[0].cast(), sizes[0].try_into().unwrap());
+    let tags = slice::from_raw_parts(tags, n);
 
     log!(
         ncclDebugLogLevel::NCCL_LOG_TRACE,
         sys::NCCL_NET,
-        "irecv({})",
-        buffer.len()
+        "homa::irecv(data: {:?}, sizes: {:?}, tags: {:?})",
+        data,
+        sizes,
+        tags,
     );
+
+    if n != 1 {
+        return ncclResult_t::ncclInternalError;
+    }
+
+    let comm = &mut *(recv_comm as *mut RecvComm);
+
+    let buffer = slice::from_raw_parts_mut(data[0].cast(), sizes[0].try_into().unwrap());
 
     *request = Box::into_raw(Box::new(Request::Recv(RecvRequest { buffer, comm }))).cast();
 

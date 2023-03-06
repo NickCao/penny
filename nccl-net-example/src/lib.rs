@@ -1,3 +1,4 @@
+use core::slice;
 use nccl_net_sys::ncclDebugLogSubSys as sys;
 use nccl_net_sys::*;
 use roma::HomaSocket;
@@ -5,6 +6,8 @@ use socket2::Domain;
 use std::{
     ffi::CString,
     ffi::{c_int, c_void},
+    io::IoSlice,
+    net::{SocketAddr, ToSocketAddrs},
     ptr::null_mut,
 };
 
@@ -26,10 +29,17 @@ macro_rules! log {
     };
 }
 
-struct ListenComm {}
+struct Request {
+    id: u64,
+}
+
+struct ListenComm {
+    socket: Option<HomaSocket>,
+}
 
 struct SendComm {
     socket: HomaSocket,
+    remote: SocketAddr,
 }
 
 struct RecvComm {
@@ -91,9 +101,24 @@ unsafe extern "C" fn listen(
         "listen",
     );
     assert_eq!(dev, 0);
-    let comm = Box::new(ListenComm {});
+    let socket = HomaSocket::new(Domain::IPV4, 1000).unwrap();
+    socket
+        .socket
+        .bind(
+            &("127.0.0.1", 0)
+                .to_socket_addrs()
+                .unwrap()
+                .next()
+                .unwrap()
+                .into(),
+        )
+        .unwrap();
+    let local = socket.socket.local_addr().unwrap().as_socket().unwrap();
+    *(handle as *mut SocketAddr) = local;
+    let comm = Box::new(ListenComm {
+        socket: Some(socket),
+    });
     *listen_comm = Box::into_raw(comm).cast();
-    *(handle as *mut u64) = 1;
     ncclResult_t::ncclSuccess
 }
 
@@ -109,23 +134,22 @@ unsafe extern "C" fn connect(
     );
     assert_eq!(dev, 0);
     let socket = HomaSocket::new(Domain::IPV4, 1000).unwrap();
-    let comm = Box::new(SendComm { socket });
+    let remote = *(handle as *const SocketAddr);
+    let comm = Box::new(SendComm { socket, remote });
     *send_comm = Box::into_raw(comm).cast();
-    assert_eq!(*(handle as *mut u64), 1);
     ncclResult_t::ncclSuccess
 }
 
-unsafe extern "C" fn accept(
-    _listen_comm: *mut c_void,
-    recv_comm: *mut *mut c_void,
-) -> ncclResult_t {
+unsafe extern "C" fn accept(listen_comm: *mut c_void, recv_comm: *mut *mut c_void) -> ncclResult_t {
     log!(
         ncclDebugLogLevel::NCCL_LOG_TRACE,
         sys::NCCL_NET | sys::NCCL_INIT,
         "accept",
     );
-    let socket = HomaSocket::new(Domain::IPV4, 1000).unwrap();
-    let comm = Box::new(RecvComm { socket });
+    let listen_comm = &mut *(listen_comm as *mut ListenComm);
+    let comm = Box::new(RecvComm {
+        socket: listen_comm.socket.take().unwrap(),
+    });
     *recv_comm = Box::into_raw(comm).cast();
     ncclResult_t::ncclSuccess
 }
@@ -152,16 +176,28 @@ unsafe extern "C" fn dereg_mr(_comm: *mut c_void, _mhandle: *mut c_void) -> nccl
 
 unsafe extern "C" fn isend(
     send_comm: *mut c_void,
-    _data: *mut c_void,
-    _size: c_int,
+    data: *mut c_void,
+    size: c_int,
     _tag: c_int,
     _mhandle: *mut c_void,
-    _request: *mut *mut c_void,
+    request: *mut *mut c_void,
 ) -> ncclResult_t {
     log!(ncclDebugLogLevel::NCCL_LOG_TRACE, sys::NCCL_NET, "isend");
-    let _comm = &*(send_comm as *mut SendComm);
-    // comm.socket.send(dest_addr, bufs, id, completion_cookie);
-    ncclResult_t::ncclInternalError
+    let comm = &*(send_comm as *mut SendComm);
+    let id = comm
+        .socket
+        .send(
+            comm.remote,
+            &[IoSlice::new(slice::from_raw_parts(
+                data.cast(),
+                size.try_into().unwrap(),
+            ))],
+            0,
+            0,
+        )
+        .unwrap();
+    *request = Box::into_raw(Box::new(Request { id })).cast();
+    ncclResult_t::ncclSuccess
 }
 
 unsafe extern "C" fn irecv(
@@ -189,19 +225,31 @@ unsafe extern "C" fn test(
 }
 
 unsafe extern "C" fn close_send(send_comm: *mut c_void) -> ncclResult_t {
-    log!(ncclDebugLogLevel::NCCL_LOG_TRACE, sys::NCCL_NET, "close_send");
+    log!(
+        ncclDebugLogLevel::NCCL_LOG_TRACE,
+        sys::NCCL_NET,
+        "close_send"
+    );
     drop(Box::from_raw(send_comm as *mut SendComm));
     ncclResult_t::ncclSuccess
 }
 
 unsafe extern "C" fn close_recv(recv_comm: *mut c_void) -> ncclResult_t {
-    log!(ncclDebugLogLevel::NCCL_LOG_TRACE, sys::NCCL_NET, "close_recv");
+    log!(
+        ncclDebugLogLevel::NCCL_LOG_TRACE,
+        sys::NCCL_NET,
+        "close_recv"
+    );
     drop(Box::from_raw(recv_comm as *mut RecvComm));
     ncclResult_t::ncclSuccess
 }
 
 unsafe extern "C" fn close_listen(listen_comm: *mut c_void) -> ncclResult_t {
-    log!(ncclDebugLogLevel::NCCL_LOG_TRACE, sys::NCCL_NET, "close_listen");
+    log!(
+        ncclDebugLogLevel::NCCL_LOG_TRACE,
+        sys::NCCL_NET,
+        "close_listen"
+    );
     drop(Box::from_raw(listen_comm as *mut ListenComm));
     ncclResult_t::ncclSuccess
 }

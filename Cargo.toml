@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+  "nccl-net-sys",
+  "nccl-net-example",
+]

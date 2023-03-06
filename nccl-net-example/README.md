@@ -1,0 +1,4 @@
+#### Environment Variables
+```
+NCCL_NET_PLUGIN=example NCCL_P2P_DISABLE=1 NCCL_P2P_DIRECT_DISABLE=1 NCCL_SHM_DISABLE=1
+```

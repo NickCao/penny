@@ -1,0 +1,12 @@
+[package]
+name = "nccl-net-example"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+nccl-net-sys = { path = "../nccl-net-sys" }
+roma = { git = "https://github.com/NickCao/roma.git" }
+socket2 = "0.5.1"
+
+[lib]
+crate-type = ["cdylib"]

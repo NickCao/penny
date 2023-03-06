@@ -1,15 +1,17 @@
 use core::slice;
 use nccl_net_sys::ncclDebugLogSubSys as sys;
 use nccl_net_sys::*;
-use roma::HomaSocket;
+use roma::{consts::HomaRecvmsgFlags, HomaSocket};
 use socket2::Domain;
 use std::{
     ffi::CString,
     ffi::{c_int, c_void},
-    io::IoSlice,
+    io::{ErrorKind, IoSlice},
     net::{SocketAddr, ToSocketAddrs},
     ptr::null_mut,
 };
+
+const PLACEHOLDER: &[u8] = &[1];
 
 static mut LOGGER: ncclDebugLogger_t = None;
 
@@ -29,21 +31,35 @@ macro_rules! log {
     };
 }
 
-struct Request {
+enum Request<'a, 'b, 'c> {
+    Send(SendRequest<'a, 'b>),
+    Recv(RecvRequest<'a, 'b, 'c>),
+}
+
+struct SendRequest<'a, 'b> {
+    comm: &'a mut SendComm<'b>,
     id: u64,
+    size: usize,
+}
+
+struct RecvRequest<'a, 'b, 'c> {
+    comm: &'a mut RecvComm<'b>,
+    buffer: &'c mut [u8],
 }
 
 struct ListenComm {
     socket: Option<HomaSocket>,
 }
 
-struct SendComm {
+struct SendComm<'a> {
     socket: HomaSocket,
+    buffer: Vec<IoSlice<'a>>,
     remote: SocketAddr,
 }
 
-struct RecvComm {
+struct RecvComm<'a> {
     socket: HomaSocket,
+    buffer: Vec<IoSlice<'a>>,
 }
 
 unsafe extern "C" fn init(logger: ncclDebugLogger_t) -> ncclResult_t {
@@ -135,7 +151,11 @@ unsafe extern "C" fn connect(
     assert_eq!(dev, 0);
     let socket = HomaSocket::new(Domain::IPV4, 1000).unwrap();
     let remote = *(handle as *const SocketAddr);
-    let comm = Box::new(SendComm { socket, remote });
+    let comm = Box::new(SendComm {
+        socket,
+        remote,
+        buffer: vec![],
+    });
     *send_comm = Box::into_raw(comm).cast();
     ncclResult_t::ncclSuccess
 }
@@ -149,6 +169,7 @@ unsafe extern "C" fn accept(listen_comm: *mut c_void, recv_comm: *mut *mut c_voi
     let listen_comm = &mut *(listen_comm as *mut ListenComm);
     let comm = Box::new(RecvComm {
         socket: listen_comm.socket.take().unwrap(),
+        buffer: vec![],
     });
     *recv_comm = Box::into_raw(comm).cast();
     ncclResult_t::ncclSuccess
@@ -183,45 +204,110 @@ unsafe extern "C" fn isend(
     request: *mut *mut c_void,
 ) -> ncclResult_t {
     log!(ncclDebugLogLevel::NCCL_LOG_TRACE, sys::NCCL_NET, "isend");
-    let comm = &*(send_comm as *mut SendComm);
+    let comm = &mut *(send_comm as *mut SendComm);
+    let size: usize = size.try_into().unwrap();
     let id = comm
         .socket
         .send(
             comm.remote,
-            &[IoSlice::new(slice::from_raw_parts(
-                data.cast(),
-                size.try_into().unwrap(),
-            ))],
+            &[IoSlice::new(slice::from_raw_parts(data.cast(), size))],
             0,
             0,
         )
         .unwrap();
-    *request = Box::into_raw(Box::new(Request { id })).cast();
+    *request = Box::into_raw(Box::new(Request::Send(SendRequest { id, comm, size }))).cast();
     ncclResult_t::ncclSuccess
 }
 
 unsafe extern "C" fn irecv(
     recv_comm: *mut c_void,
-    _n: c_int,
-    _data: *mut *mut c_void,
-    _sizes: *mut c_int,
+    n: c_int,
+    data: *mut *mut c_void,
+    sizes: *mut c_int,
     _tags: *mut c_int,
     _mhandles: *mut *mut c_void,
-    _request: *mut *mut c_void,
+    request: *mut *mut c_void,
 ) -> ncclResult_t {
-    log!(ncclDebugLogLevel::NCCL_LOG_TRACE, sys::NCCL_NET, "irecv");
-    let _comm = &*(recv_comm as *mut RecvComm);
-    // comm.socket.recv(id, flags, bufs);
-    ncclResult_t::ncclInternalError
+    let comm = &mut *(recv_comm as *mut RecvComm);
+
+    let n: usize = n.try_into().unwrap();
+    if n != 1 {
+        return ncclResult_t::ncclInternalError;
+    }
+
+    let data = slice::from_raw_parts(data, n);
+    let sizes = slice::from_raw_parts(sizes, n);
+    let buffer = slice::from_raw_parts_mut(data[0].cast(), sizes[0].try_into().unwrap());
+
+    log!(
+        ncclDebugLogLevel::NCCL_LOG_TRACE,
+        sys::NCCL_NET,
+        "irecv({})",
+        buffer.len()
+    );
+
+    *request = Box::into_raw(Box::new(Request::Recv(RecvRequest { buffer, comm }))).cast();
+
+    ncclResult_t::ncclSuccess
 }
 
 unsafe extern "C" fn test(
-    _request: *mut c_void,
-    _done: *mut c_int,
-    _sizes: *mut c_int,
+    request: *mut c_void,
+    done: *mut c_int,
+    sizes: *mut c_int,
 ) -> ncclResult_t {
-    log!(ncclDebugLogLevel::NCCL_LOG_TRACE, sys::NCCL_NET, "test");
-    ncclResult_t::ncclInternalError
+    *done = 0;
+    let request: &mut Request = &mut *request.cast();
+    match request {
+        Request::Send(req) => match req.comm.socket.recv(
+            req.id,
+            HomaRecvmsgFlags::RESPONSE | HomaRecvmsgFlags::NONBLOCKING,
+            &req.comm.buffer,
+        ) {
+            Ok((_, _, buffer, _)) => {
+                *done = 1;
+                *sizes = req.size.try_into().unwrap();
+                req.comm.buffer = buffer;
+                // FIXME: drop request handle
+                return ncclResult_t::ncclSuccess;
+            }
+            Err(err) if err.kind() == ErrorKind::WouldBlock => {
+                return ncclResult_t::ncclSuccess;
+            }
+            Err(err) => panic!("{}", err),
+        },
+        Request::Recv(req) => match req.comm.socket.recv(
+            0,
+            HomaRecvmsgFlags::REQUEST | HomaRecvmsgFlags::NONBLOCKING,
+            &req.comm.buffer,
+        ) {
+            Ok((id, _, buffer, addr)) => {
+                *done = 1;
+                *sizes = buffer
+                    .iter()
+                    .map(|buf| buf.len())
+                    .sum::<usize>()
+                    .try_into()
+                    .unwrap();
+                let mut cur: usize = 0;
+                for buf in &buffer {
+                    req.buffer[cur..cur + buf.len()].copy_from_slice(buf);
+                    cur += buf.len();
+                }
+                req.comm.buffer = buffer;
+                // FIXME: drop request handle
+                req.comm
+                    .socket
+                    .send(addr.unwrap(), &[IoSlice::new(PLACEHOLDER)], id, 0)
+                    .unwrap();
+                return ncclResult_t::ncclSuccess;
+            }
+            Err(err) if err.kind() == ErrorKind::WouldBlock => {
+                return ncclResult_t::ncclSuccess;
+            }
+            Err(err) => panic!("{}", err),
+        },
+    }
 }
 
 unsafe extern "C" fn close_send(send_comm: *mut c_void) -> ncclResult_t {

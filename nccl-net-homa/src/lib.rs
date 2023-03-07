@@ -1,13 +1,18 @@
+#![feature(ip)]
+
 use core::slice;
 use nccl_net_sys::ncclDebugLogSubSys as sys;
 use nccl_net_sys::*;
-use roma::{consts::HomaRecvmsgFlags, HomaSocket};
-use socket2::Domain;
+use roma::{
+    consts::{HomaRecvmsgFlags, HOMA_MAX_MESSAGE_LENGTH},
+    HomaSocket,
+};
+use socket2::{Domain, SockAddr};
 use std::{
     ffi::CString,
     ffi::{c_int, c_void},
     io::ErrorKind,
-    net::{SocketAddr, ToSocketAddrs},
+    net::{IpAddr, SocketAddr, ToSocketAddrs},
     ptr::null_mut,
 };
 
@@ -112,17 +117,22 @@ pub unsafe extern "C" fn listen(
         "listen",
     );
     assert_eq!(dev, 0);
+    let addr = if_addrs::get_if_addrs()
+        .unwrap()
+        .iter()
+        .map(|i| i.addr.ip())
+        .find(|a| {
+            if let IpAddr::V4(v4) = a {
+                v4.is_private()
+            } else {
+                false
+            }
+        })
+        .unwrap();
     let socket = HomaSocket::new(Domain::IPV4, 1000).unwrap();
     socket
         .socket
-        .bind(
-            &("127.0.0.1", 0)
-                .to_socket_addrs()
-                .unwrap()
-                .next()
-                .unwrap()
-                .into(),
-        )
+        .bind(&(addr, 0).to_socket_addrs().unwrap().next().unwrap().into())
         .unwrap();
     let local = socket.socket.local_addr().unwrap().as_socket().unwrap();
     *(handle as *mut SocketAddr) = local;
@@ -198,7 +208,7 @@ pub unsafe extern "C" fn isend(
 ) -> ncclResult_t {
     log!(
         ncclDebugLogLevel::NCCL_LOG_TRACE,
-        sys::NCCL_NET,
+        sys::NCCL_INIT | sys::NCCL_NET,
         "homa::isend(data: {:?}, size: {}, tag: {})",
         data,
         size,

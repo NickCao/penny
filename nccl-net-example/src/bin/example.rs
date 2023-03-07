@@ -5,7 +5,7 @@ use nccl_net_sys::*;
 use std::{
     ffi::{c_void, CStr},
     os::raw::*,
-    ptr::{null, null_mut},
+    ptr::{null_mut},
 };
 
 unsafe extern "C" fn logger(
@@ -77,5 +77,27 @@ fn main() {
             &mut recv_req,
         );
         assert_eq!(ret, ncclResult_t::ncclSuccess);
+
+        loop {
+            let mut done = 0;
+            let mut size = 0;
+            let ret = test(recv_req, &mut done, &mut size);
+            assert_eq!(ret, ncclResult_t::ncclSuccess);
+            if done == 1 {
+                assert_eq!(size, data.len().try_into().unwrap());
+                break;
+            }
+        }
+
+        loop {
+            let mut done = 0;
+            let mut size = 0;
+            let ret = test(send_req, &mut done, &mut size);
+            assert_eq!(ret, ncclResult_t::ncclSuccess);
+            if done == 1 {
+                assert_eq!(size, data.len().try_into().unwrap());
+                break;
+            }
+        }
     }
 }

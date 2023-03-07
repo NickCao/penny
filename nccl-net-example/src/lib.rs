@@ -263,7 +263,7 @@ pub unsafe extern "C" fn test(
     log!(
         ncclDebugLogLevel::NCCL_LOG_TRACE,
         sys::NCCL_NET,
-        "homa::irecv(request: TODO)",
+        "homa::test(request: TODO)",
     );
 
     let mut tmp = [0u8; 8];
@@ -278,16 +278,16 @@ pub unsafe extern "C" fn test(
                 *done = 1;
                 *sizes = u64::from_be_bytes(tmp).try_into().unwrap();
                 // FIXME: drop request handle
-                return ncclResult_t::ncclSuccess;
+                ncclResult_t::ncclSuccess
             }
             Err(err) if err.kind() == ErrorKind::WouldBlock => {
                 *done = 0;
-                return ncclResult_t::ncclSuccess;
+                ncclResult_t::ncclSuccess
             }
             Err(err) => panic!("{}", err),
         },
         Request::Recv(req) => match req.comm.socket.recv(
-            &mut req.buffer,
+            req.buffer,
             HomaRecvmsgFlags::REQUEST | HomaRecvmsgFlags::NONBLOCKING,
             0,
         ) {
@@ -299,11 +299,11 @@ pub unsafe extern "C" fn test(
                     .socket
                     .send(&(length as u64).to_be_bytes(), addr, id, 0)
                     .unwrap();
-                return ncclResult_t::ncclSuccess;
+                ncclResult_t::ncclSuccess
             }
             Err(err) if err.kind() == ErrorKind::WouldBlock => {
                 *done = 0;
-                return ncclResult_t::ncclSuccess;
+                ncclResult_t::ncclSuccess
             }
             Err(err) => panic!("{}", err),
         },

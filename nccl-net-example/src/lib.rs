@@ -57,7 +57,7 @@ struct RecvComm {
     socket: HomaSocket,
 }
 
-unsafe extern "C" fn init(logger: ncclDebugLogger_t) -> ncclResult_t {
+pub unsafe extern "C" fn init(logger: ncclDebugLogger_t) -> ncclResult_t {
     LOGGER = logger;
     log!(
         ncclDebugLogLevel::NCCL_LOG_TRACE,
@@ -67,7 +67,7 @@ unsafe extern "C" fn init(logger: ncclDebugLogger_t) -> ncclResult_t {
     ncclResult_t::ncclSuccess
 }
 
-unsafe extern "C" fn devices(ndev: *mut c_int) -> ncclResult_t {
+pub unsafe extern "C" fn devices(ndev: *mut c_int) -> ncclResult_t {
     log!(
         ncclDebugLogLevel::NCCL_LOG_TRACE,
         sys::NCCL_NET | sys::NCCL_INIT,
@@ -77,7 +77,7 @@ unsafe extern "C" fn devices(ndev: *mut c_int) -> ncclResult_t {
     ncclResult_t::ncclSuccess
 }
 
-unsafe extern "C" fn get_properties(
+pub unsafe extern "C" fn get_properties(
     dev: c_int,
     props: *mut ncclNetProperties_v6_t,
 ) -> ncclResult_t {
@@ -101,7 +101,7 @@ unsafe extern "C" fn get_properties(
     ncclResult_t::ncclSuccess
 }
 
-unsafe extern "C" fn listen(
+pub unsafe extern "C" fn listen(
     dev: c_int,
     handle: *mut c_void,
     listen_comm: *mut *mut c_void,
@@ -133,7 +133,7 @@ unsafe extern "C" fn listen(
     ncclResult_t::ncclSuccess
 }
 
-unsafe extern "C" fn connect(
+pub unsafe extern "C" fn connect(
     dev: c_int,
     handle: *mut c_void,
     send_comm: *mut *mut c_void,
@@ -151,7 +151,10 @@ unsafe extern "C" fn connect(
     ncclResult_t::ncclSuccess
 }
 
-unsafe extern "C" fn accept(listen_comm: *mut c_void, recv_comm: *mut *mut c_void) -> ncclResult_t {
+pub unsafe extern "C" fn accept(
+    listen_comm: *mut c_void,
+    recv_comm: *mut *mut c_void,
+) -> ncclResult_t {
     log!(
         ncclDebugLogLevel::NCCL_LOG_TRACE,
         sys::NCCL_NET | sys::NCCL_INIT,
@@ -185,7 +188,7 @@ unsafe extern "C" fn dereg_mr(_comm: *mut c_void, _mhandle: *mut c_void) -> nccl
     ncclResult_t::ncclSuccess
 }
 
-unsafe extern "C" fn isend(
+pub unsafe extern "C" fn isend(
     send_comm: *mut c_void,
     data: *mut c_void,
     size: c_int,
@@ -214,7 +217,7 @@ unsafe extern "C" fn isend(
     ncclResult_t::ncclSuccess
 }
 
-unsafe extern "C" fn irecv(
+pub unsafe extern "C" fn irecv(
     recv_comm: *mut c_void,
     n: c_int,
     data: *mut *mut c_void,
@@ -250,7 +253,7 @@ unsafe extern "C" fn irecv(
     ncclResult_t::ncclSuccess
 }
 
-unsafe extern "C" fn test(
+pub unsafe extern "C" fn test(
     request: *mut c_void,
     done: *mut c_int,
     sizes: *mut c_int,
@@ -307,7 +310,7 @@ unsafe extern "C" fn test(
     }
 }
 
-unsafe extern "C" fn close_send(send_comm: *mut c_void) -> ncclResult_t {
+pub unsafe extern "C" fn close_send(send_comm: *mut c_void) -> ncclResult_t {
     log!(
         ncclDebugLogLevel::NCCL_LOG_TRACE,
         sys::NCCL_NET,
@@ -317,7 +320,7 @@ unsafe extern "C" fn close_send(send_comm: *mut c_void) -> ncclResult_t {
     ncclResult_t::ncclSuccess
 }
 
-unsafe extern "C" fn close_recv(recv_comm: *mut c_void) -> ncclResult_t {
+pub unsafe extern "C" fn close_recv(recv_comm: *mut c_void) -> ncclResult_t {
     log!(
         ncclDebugLogLevel::NCCL_LOG_TRACE,
         sys::NCCL_NET,
@@ -327,7 +330,7 @@ unsafe extern "C" fn close_recv(recv_comm: *mut c_void) -> ncclResult_t {
     ncclResult_t::ncclSuccess
 }
 
-unsafe extern "C" fn close_listen(listen_comm: *mut c_void) -> ncclResult_t {
+pub unsafe extern "C" fn close_listen(listen_comm: *mut c_void) -> ncclResult_t {
     log!(
         ncclDebugLogLevel::NCCL_LOG_TRACE,
         sys::NCCL_NET,

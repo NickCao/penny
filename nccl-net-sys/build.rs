@@ -12,6 +12,7 @@ fn main() {
         .whitelist_type("ncclDebugLogSubSys")
         .bitfield_enum("ncclDebugLogSubSys")
         .whitelist_var("NCCL_PTR_.*")
+        .whitelist_var("NCCL_NET_HANDLE_MAXSIZE")
         .default_enum_style(bindgen::EnumVariation::Rust {
             non_exhaustive: false,
         })

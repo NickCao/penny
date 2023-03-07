@@ -1,5 +1,5 @@
 [package]
-name = "nccl-net-example"
+name = "nccl-net-homa"
 version = "0.1.0"
 edition = "2021"
 

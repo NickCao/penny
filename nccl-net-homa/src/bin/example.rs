@@ -1,11 +1,11 @@
 #![feature(c_variadic)]
 
-use nccl_net_example::*;
+use nccl_net_homa::*;
 use nccl_net_sys::*;
 use std::{
     ffi::{c_void, CStr},
     os::raw::*,
-    ptr::{null_mut},
+    ptr::null_mut,
 };
 
 unsafe extern "C" fn logger(

@@ -6,12 +6,10 @@ use socket2::Domain;
 use std::{
     ffi::CString,
     ffi::{c_int, c_void},
-    io::{ErrorKind, IoSlice},
+    io::ErrorKind,
     net::{SocketAddr, ToSocketAddrs},
     ptr::null_mut,
 };
-
-const PLACEHOLDER: &[u8] = &[1];
 
 static mut LOGGER: ncclDebugLogger_t = None;
 
@@ -31,35 +29,32 @@ macro_rules! log {
     };
 }
 
-enum Request<'a, 'b, 'c> {
-    Send(SendRequest<'a, 'b>),
-    Recv(RecvRequest<'a, 'b, 'c>),
+enum Request<'a, 'b> {
+    Send(SendRequest<'a>),
+    Recv(RecvRequest<'a, 'b>),
 }
 
-struct SendRequest<'a, 'b> {
-    comm: &'a mut SendComm<'b>,
+struct SendRequest<'a> {
+    comm: &'a mut SendComm,
     id: u64,
-    size: usize,
 }
 
-struct RecvRequest<'a, 'b, 'c> {
-    comm: &'a mut RecvComm<'b>,
-    buffer: &'c mut [u8],
+struct RecvRequest<'a, 'b> {
+    comm: &'a mut RecvComm,
+    buffer: &'b mut [u8],
 }
 
 struct ListenComm {
     socket: Option<HomaSocket>,
 }
 
-struct SendComm<'a> {
+struct SendComm {
     socket: HomaSocket,
-    buffer: Vec<IoSlice<'a>>,
     remote: SocketAddr,
 }
 
-struct RecvComm<'a> {
+struct RecvComm {
     socket: HomaSocket,
-    buffer: Vec<IoSlice<'a>>,
 }
 
 unsafe extern "C" fn init(logger: ncclDebugLogger_t) -> ncclResult_t {
@@ -151,11 +146,7 @@ unsafe extern "C" fn connect(
     assert_eq!(dev, 0);
     let socket = HomaSocket::new(Domain::IPV4, 1000).unwrap();
     let remote = *(handle as *const SocketAddr);
-    let comm = Box::new(SendComm {
-        socket,
-        remote,
-        buffer: vec![],
-    });
+    let comm = Box::new(SendComm { socket, remote });
     *send_comm = Box::into_raw(comm).cast();
     ncclResult_t::ncclSuccess
 }
@@ -169,7 +160,6 @@ unsafe extern "C" fn accept(listen_comm: *mut c_void, recv_comm: *mut *mut c_voi
     let listen_comm = &mut *(listen_comm as *mut ListenComm);
     let comm = Box::new(RecvComm {
         socket: listen_comm.socket.take().unwrap(),
-        buffer: vec![],
     });
     *recv_comm = Box::into_raw(comm).cast();
     ncclResult_t::ncclSuccess
@@ -215,11 +205,11 @@ unsafe extern "C" fn isend(
     let comm = &mut *(send_comm as *mut SendComm);
 
     let size: usize = size.try_into().unwrap();
-    let data = IoSlice::new(slice::from_raw_parts(data.cast(), size));
+    let data = slice::from_raw_parts(data.cast(), size);
 
-    let id = comm.socket.send(comm.remote, &[data], 0, 0).unwrap();
+    let id = comm.socket.send(data, comm.remote.into(), 0, 0).unwrap();
 
-    *request = Box::into_raw(Box::new(Request::Send(SendRequest { id, comm, size }))).cast();
+    *request = Box::into_raw(Box::new(Request::Send(SendRequest { id, comm }))).cast();
 
     ncclResult_t::ncclSuccess
 }
@@ -273,16 +263,17 @@ unsafe extern "C" fn test(
         "homa::irecv(request: TODO)",
     );
 
+    let mut tmp = [0u8; 8];
+
     match request {
         Request::Send(req) => match req.comm.socket.recv(
-            req.id,
+            &mut tmp,
             HomaRecvmsgFlags::RESPONSE | HomaRecvmsgFlags::NONBLOCKING,
-            &req.comm.buffer,
+            req.id,
         ) {
-            Ok((_, _, buffer, _)) => {
+            Ok((_, _, _, _)) => {
                 *done = 1;
-                *sizes = req.size.try_into().unwrap();
-                req.comm.buffer = buffer;
+                *sizes = u64::from_be_bytes(tmp).try_into().unwrap();
                 // FIXME: drop request handle
                 return ncclResult_t::ncclSuccess;
             }
@@ -293,28 +284,17 @@ unsafe extern "C" fn test(
             Err(err) => panic!("{}", err),
         },
         Request::Recv(req) => match req.comm.socket.recv(
-            0,
+            &mut req.buffer,
             HomaRecvmsgFlags::REQUEST | HomaRecvmsgFlags::NONBLOCKING,
-            &req.comm.buffer,
+            0,
         ) {
-            Ok((id, _, buffer, addr)) => {
+            Ok((length, addr, id, _)) => {
                 *done = 1;
-                *sizes = buffer
-                    .iter()
-                    .map(|buf| buf.len())
-                    .sum::<usize>()
-                    .try_into()
-                    .unwrap();
-                let mut cur: usize = 0;
-                for buf in &buffer {
-                    req.buffer[cur..cur + buf.len()].copy_from_slice(buf);
-                    cur += buf.len();
-                }
-                req.comm.buffer = buffer;
+                *sizes = length.try_into().unwrap();
                 // FIXME: drop request handle
                 req.comm
                     .socket
-                    .send(addr.unwrap(), &[IoSlice::new(PLACEHOLDER)], id, 0)
+                    .send(&(length as u64).to_be_bytes(), addr, id, 0)
                     .unwrap();
                 return ncclResult_t::ncclSuccess;
             }

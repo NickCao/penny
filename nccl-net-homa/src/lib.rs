@@ -243,7 +243,7 @@ pub unsafe extern "C" fn irecv(
 
     log!(
         ncclDebugLogLevel::NCCL_LOG_TRACE,
-        sys::NCCL_NET,
+        sys::NCCL_INIT | sys::NCCL_NET,
         "homa::irecv(data: {:?}, sizes: {:?}, tags: {:?})",
         data,
         sizes,
@@ -268,13 +268,16 @@ pub unsafe extern "C" fn test(
     done: *mut c_int,
     sizes: *mut c_int,
 ) -> ncclResult_t {
-    let request: &mut Request = &mut *request.cast();
-
     log!(
         ncclDebugLogLevel::NCCL_LOG_TRACE,
-        sys::NCCL_NET,
-        "homa::test(request: TODO)",
+        sys::NCCL_INIT | sys::NCCL_NET,
+        "homa::test(request: {:?}, done: {:?}, sizes: {:?})",
+        request,
+        done,
+        sizes,
     );
+
+    let request: &mut Request = &mut *request.cast();
 
     let mut tmp = [0u8; 8];
 
@@ -286,7 +289,9 @@ pub unsafe extern "C" fn test(
         ) {
             Ok((_, _, _, _)) => {
                 *done = 1;
-                *sizes = u64::from_be_bytes(tmp).try_into().unwrap();
+                if sizes != null_mut() {
+                    *sizes = u64::from_be_bytes(tmp).try_into().unwrap();
+                }
                 // FIXME: drop request handle
                 ncclResult_t::ncclSuccess
             }
@@ -303,7 +308,9 @@ pub unsafe extern "C" fn test(
         ) {
             Ok((length, addr, id, _)) => {
                 *done = 1;
-                *sizes = length.try_into().unwrap();
+                if sizes != null_mut() {
+                    *sizes = length.try_into().unwrap();
+                }
                 // FIXME: drop request handle
                 req.comm
                     .socket

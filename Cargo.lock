@@ -446,7 +446,7 @@ checksum = "456c603be3e8d448b072f410900c09faf164fbce2d480456f50eea6e25f9c848"
 [[package]]
 name = "roma"
 version = "0.1.0"
-source = "git+https://github.com/NickCao/roma.git#165cf91ffac6bc3c9633a9718a8fabbd28be40cd"
+source = "git+https://github.com/NickCao/roma.git#5b179bd5c6f009fb6e546e84a38f13e377535bd1"
 dependencies = [
  "bitflags",
  "env_logger 0.10.0",

@@ -64,7 +64,7 @@ fn main() {
         assert_eq!(ret, ncclResult_t::ncclSuccess);
 
         let mut recv_req: *mut c_void = null_mut();
-        let mut buf = vec![0u8, 100];
+        let mut buf = vec![0u8; 100];
         let mut bufs = [buf.as_mut_ptr().cast()];
         let mut sizes = [data.len().try_into().unwrap()];
         let ret = irecv(
@@ -99,5 +99,7 @@ fn main() {
                 break;
             }
         }
+
+        assert_eq!(buf[..data.len()], data);
     }
 }

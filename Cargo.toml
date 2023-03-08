@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "roma",
   "nccl-net-sys",
   "nccl-net-homa",
 ]

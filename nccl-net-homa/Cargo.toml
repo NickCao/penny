@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 nccl-net-sys = { path = "../nccl-net-sys" }
-roma = { git = "https://github.com/NickCao/roma.git" }
+roma = { path = "../roma" }
 socket2 = "0.5.1"
 if-addrs = "0.10.1"
 

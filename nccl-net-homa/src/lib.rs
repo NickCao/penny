@@ -93,12 +93,8 @@ pub unsafe extern "C" fn listen(
     handle: *mut c_void,
     listen_comm: *mut *mut c_void,
 ) -> ncclResult_t {
-    log!(
-        ncclDebugLogLevel::NCCL_LOG_TRACE,
-        sys::NCCL_NET | sys::NCCL_INIT,
-        "listen",
-    );
     assert_eq!(dev, 0);
+
     let addr = if_addrs::get_if_addrs()
         .unwrap()
         .iter()
@@ -111,13 +107,25 @@ pub unsafe extern "C" fn listen(
             }
         })
         .unwrap_or_else(|| IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)));
+
     let socket = HomaSocket::new(Domain::IPV4, 1000).unwrap();
+
     socket
         .socket
         .bind(&(addr, 0).to_socket_addrs().unwrap().next().unwrap().into())
         .unwrap();
+
     let local = socket.socket.local_addr().unwrap().as_socket().unwrap();
+
+    log!(
+        ncclDebugLogLevel::NCCL_LOG_TRACE,
+        sys::NCCL_NET | sys::NCCL_INIT,
+        "homa::listen(bind: {})",
+        local,
+    );
+
     *(handle as *mut SocketAddr) = local;
+
     let comm = Box::new(ListenComm {
         socket: Some(socket),
     });

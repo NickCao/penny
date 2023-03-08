@@ -1,19 +1,17 @@
 #![feature(int_roundings)]
 #![feature(default_free_fn)]
 
-
 use memmap2::{MmapMut, MmapOptions};
 use nix::sys::socket::setsockopt;
 use socket2::{Domain, SockAddr, Socket, Type};
 use std::cmp::min;
 use std::collections::VecDeque;
+use std::ffi::c_int;
 use std::io::{Error, ErrorKind, IoSlice, Result};
-
+use std::mem::size_of_val;
+use std::net::SocketAddr;
 use std::os::fd::AsRawFd;
 use std::slice;
-use std::{ffi::c_int, mem::size_of};
-
-use crate::types::HomaBuf;
 
 pub mod consts;
 pub mod types;
@@ -33,7 +31,7 @@ impl HomaSocket {
         let length = pages * consts::HOMA_BPAGE_SIZE;
         let buffer = MmapOptions::new().len(length).map_anon()?;
 
-        setsockopt(socket.as_raw_fd(), HomaBuf, &buffer).unwrap();
+        setsockopt(socket.as_raw_fd(), types::HomaBuf, &buffer).unwrap();
 
         Ok(Self {
             socket,
@@ -42,28 +40,36 @@ impl HomaSocket {
         })
     }
 
-    pub fn send(&self, buf: &[u8], addr: SockAddr, id: u64, completion_cookie: u64) -> Result<u64> {
+    pub fn send(
+        &self,
+        buf: &[u8],
+        addr: SocketAddr,
+        id: u64,
+        completion_cookie: u64,
+    ) -> Result<u64> {
         log::debug!(
-            "HomaSocket::send(buf.len(): {}, addr: {:?}, id: {}, completion_cookie: {})",
+            "HomaSocket::send(buf.len(): {}, addr: {}, id: {}, completion_cookie: {})",
             buf.len(),
             addr,
             id,
             completion_cookie
         );
 
+        let addr = SockAddr::from(addr);
+
+        let pad = vec![0];
+        let iov = vec![IoSlice::new(buf), IoSlice::new(&pad)];
+
         let mut sendmsg_args = types::homa_sendmsg_args {
             id,
             completion_cookie,
         };
 
-        let padding = vec![0];
-        let iovec = vec![IoSlice::new(buf), IoSlice::new(&padding)];
-
         let mut hdr = libc::msghdr {
             msg_name: addr.as_ptr() as *mut _,
             msg_namelen: addr.len(),
-            msg_iov: iovec.as_ptr() as *mut _,
-            msg_iovlen: 2,
+            msg_iov: iov.as_ptr() as *mut _,
+            msg_iovlen: iov.len(),
             msg_control: (&mut sendmsg_args as *mut types::homa_sendmsg_args).cast(),
             msg_controllen: 0,
             msg_flags: 0,
@@ -83,7 +89,7 @@ impl HomaSocket {
         buf: &mut [u8],
         flags: consts::HomaRecvmsgFlags,
         id: u64,
-    ) -> Result<(usize, SockAddr, u64, u64)> {
+    ) -> Result<(usize, SocketAddr, u64, u64)> {
         log::debug!(
             "HomaSocket::recv(buf.len(): {}, flags: {:?}, id: {})",
             buf.len(),
@@ -110,11 +116,11 @@ impl HomaSocket {
 
         let mut hdr = libc::msghdr {
             msg_name: (&mut addr as *mut libc::sockaddr_storage).cast(),
-            msg_namelen: size_of::<libc::sockaddr_storage>() as u32,
-            msg_iov: std::ptr::null_mut() as *mut _,
+            msg_namelen: size_of_val(&addr).try_into().unwrap(),
+            msg_iov: std::ptr::null_mut(),
             msg_iovlen: 0,
             msg_control: (&mut recvmsg_args as *mut types::homa_recvmsg_args).cast(),
-            msg_controllen: size_of::<types::homa_recvmsg_args>(),
+            msg_controllen: size_of_val(&recvmsg_args),
             msg_flags: 0,
         };
 
@@ -127,12 +133,7 @@ impl HomaSocket {
         };
 
         if length < 0 {
-            let err = Error::last_os_error();
-            if err.kind() == ErrorKind::InvalidInput {
-                log::debug!("args: {:?}", recvmsg_args);
-                log::debug!("hdr: {:?}", hdr);
-            }
-            return Err(err);
+            return Err(Error::last_os_error());
         }
 
         let length: usize = length.try_into().unwrap();
@@ -159,14 +160,11 @@ impl HomaSocket {
             }
         }
 
+        let addr = unsafe { SockAddr::new(addr, size_of_val(&addr).try_into().unwrap()) };
+
         Ok((
             length - 1,
-            unsafe {
-                SockAddr::new(
-                    addr,
-                    size_of::<libc::sockaddr_storage>().try_into().unwrap(),
-                )
-            },
+            addr.as_socket().unwrap(),
             recvmsg_args.id,
             recvmsg_args.completion_cookie,
         ))
@@ -179,5 +177,64 @@ impl HomaSocket {
 
     pub fn freeze(&self) -> nix::Result<i32> {
         unsafe { types::homa_freeze(self.socket.as_raw_fd()) }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::*;
+    use rand::{RngCore, SeedableRng};
+
+    #[test]
+    fn roundtrip() {
+        let _server = std::thread::spawn(|| {
+            let mut socket = HomaSocket::new(Domain::IPV4, 1000).unwrap();
+
+            let addr: SocketAddr = "127.0.0.1:4000".parse().unwrap();
+
+            socket.socket.bind(&addr.into()).unwrap();
+
+            let mut bufs = vec![0u8; consts::HOMA_MAX_MESSAGE_LENGTH];
+
+            loop {
+                match socket.recv(&mut bufs, consts::HomaRecvmsgFlags::REQUEST, 0) {
+                    Ok((length, addr, id, _)) => {
+                        socket.send(&bufs[..length], addr, id, 0).unwrap();
+                    }
+                    Err(err) => panic!("{}", err),
+                }
+            }
+        });
+
+        let client = std::thread::spawn(|| {
+            let mut socket = HomaSocket::new(Domain::IPV4, 1000).unwrap();
+
+            let addr: SocketAddr = "127.0.0.1:4000".parse().unwrap();
+
+            let mut buf = vec![0u8; consts::HOMA_MAX_MESSAGE_LENGTH];
+
+            let mut i = 1;
+
+            while i < consts::HOMA_MAX_MESSAGE_LENGTH {
+                let mut rng = rand::rngs::StdRng::seed_from_u64(i.try_into().unwrap());
+
+                let mut src = vec![0u8; i];
+
+                rng.fill_bytes(&mut src);
+
+                let id = socket.send(&src, addr.into(), 0, 0).unwrap();
+
+                let (length, _, _, _) = socket
+                    .recv(&mut buf, consts::HomaRecvmsgFlags::empty(), id)
+                    .unwrap();
+
+                assert_eq!(src.len(), length);
+                assert_eq!(src, buf[..length]);
+
+                i *= 2
+            }
+        });
+
+        client.join().unwrap();
     }
 }

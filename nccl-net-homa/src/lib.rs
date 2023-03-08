@@ -138,14 +138,18 @@ pub unsafe extern "C" fn connect(
     handle: *mut c_void,
     send_comm: *mut *mut c_void,
 ) -> ncclResult_t {
+    assert_eq!(dev, 0);
+    let socket = HomaSocket::new(Domain::IPV4, 1000).unwrap();
+
+    let remote = *(handle as *const SocketAddr);
+
     log!(
         ncclDebugLogLevel::NCCL_LOG_TRACE,
         sys::NCCL_NET | sys::NCCL_INIT,
-        "connect",
+        "homa::connect(remote: {})",
+        remote,
     );
-    assert_eq!(dev, 0);
-    let socket = HomaSocket::new(Domain::IPV4, 1000).unwrap();
-    let remote = *(handle as *const SocketAddr);
+
     let comm = Box::new(SendComm { socket, remote });
     *send_comm = Box::into_raw(comm).cast();
     ncclResult_t::ncclSuccess

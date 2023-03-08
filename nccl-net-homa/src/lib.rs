@@ -205,26 +205,19 @@ unsafe extern "C" fn dereg_mr(_comm: *mut c_void, _mhandle: *mut c_void) -> nccl
     ncclResult_t::ncclSuccess
 }
 
-pub unsafe extern "C" fn isend(
+pub extern "C" fn isend(
     send_comm: *mut c_void,
     data: *mut c_void,
     size: c_int,
-    tag: c_int,
+    _tag: c_int,
     _mhandle: *mut c_void,
     request: *mut *mut c_void,
 ) -> ncclResult_t {
-    log!(
-        ncclDebugLogLevel::NCCL_LOG_TRACE,
-        sys::NCCL_INIT | sys::NCCL_NET,
-        "homa::isend(data: {:?}, size: {}, tag: {})",
-        data,
-        size,
-        tag
-    );
-    let comm: &mut SendComm = Box::leak(Box::from_raw(send_comm.cast()));
-
     let size: usize = size.try_into().unwrap();
-    let data = slice::from_raw_parts(data.cast(), size);
+    let data = unsafe { slice::from_raw_parts(data.cast(), size) };
+
+    let comm: &mut SendComm = unsafe { Box::leak(Box::from_raw(send_comm.cast())) };
+    let request = unsafe { request.as_mut().unwrap() };
 
     let id = comm
         .socket
@@ -236,36 +229,26 @@ pub unsafe extern "C" fn isend(
     ncclResult_t::ncclSuccess
 }
 
-pub unsafe extern "C" fn irecv(
+pub extern "C" fn irecv(
     recv_comm: *mut c_void,
     n: c_int,
     data: *mut *mut c_void,
     sizes: *mut c_int,
-    tags: *mut c_int,
+    _tags: *mut c_int,
     _mhandles: *mut *mut c_void,
     request: *mut *mut c_void,
 ) -> ncclResult_t {
     let n: usize = n.try_into().unwrap();
-    let data = slice::from_raw_parts(data, n);
-    let sizes = slice::from_raw_parts(sizes, n);
-    let tags = slice::from_raw_parts(tags, n);
+    let data = unsafe { slice::from_raw_parts(data, n) };
+    let sizes = unsafe { slice::from_raw_parts(sizes, n) };
+    let buffer = unsafe { slice::from_raw_parts_mut(data[0].cast(), sizes[0].try_into().unwrap()) };
 
-    log!(
-        ncclDebugLogLevel::NCCL_LOG_TRACE,
-        sys::NCCL_INIT | sys::NCCL_NET,
-        "homa::irecv(data: {:?}, sizes: {:?}, tags: {:?})",
-        data,
-        sizes,
-        tags,
-    );
+    let comm: &mut RecvComm = unsafe { Box::leak(Box::from_raw(recv_comm.cast())) };
+    let request = unsafe { request.as_mut().unwrap() };
 
     if n != 1 {
         return ncclResult_t::ncclInternalError;
     }
-
-    let comm: &mut RecvComm = Box::leak(Box::from_raw(recv_comm.cast()));
-
-    let buffer = slice::from_raw_parts_mut(data[0].cast(), sizes[0].try_into().unwrap());
 
     *request = Box::into_raw(Box::new(Request::Recv(RecvRequest { buffer, comm }))).cast();
 

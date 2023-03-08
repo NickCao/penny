@@ -212,8 +212,7 @@ pub unsafe extern "C" fn isend(
         size,
         tag
     );
-
-    let comm = &mut *(send_comm as *mut SendComm);
+    let comm: &mut SendComm = Box::leak(Box::from_raw(send_comm.cast()));
 
     let size: usize = size.try_into().unwrap();
     let data = slice::from_raw_parts(data.cast(), size);
@@ -255,7 +254,7 @@ pub unsafe extern "C" fn irecv(
         return ncclResult_t::ncclInternalError;
     }
 
-    let comm = &mut *(recv_comm as *mut RecvComm);
+    let comm: &mut RecvComm = Box::leak(Box::from_raw(recv_comm.cast()));
 
     let buffer = slice::from_raw_parts_mut(data[0].cast(), sizes[0].try_into().unwrap());
 
@@ -269,19 +268,7 @@ pub unsafe extern "C" fn test(
     done: *mut c_int,
     sizes: *mut c_int,
 ) -> ncclResult_t {
-    /*
-    log!(
-        ncclDebugLogLevel::NCCL_LOG_TRACE,
-        sys::NCCL_INIT | sys::NCCL_NET,
-        "homa::test(request: {:?}, done: {:?}, sizes: {:?})",
-        request,
-        done,
-        sizes,
-    );
-    */
-
-    let request: &mut Request = &mut *request.cast();
-
+    let request: &mut Request = Box::leak(Box::from_raw(request.cast()));
     let mut tmp = [0u8; 8];
 
     match request {

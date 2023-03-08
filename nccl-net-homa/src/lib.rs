@@ -263,12 +263,8 @@ pub unsafe extern "C" fn irecv(
     ncclResult_t::ncclSuccess
 }
 
-pub unsafe extern "C" fn test(
-    request: *mut c_void,
-    done: *mut c_int,
-    sizes: *mut c_int,
-) -> ncclResult_t {
-    let request: &mut Request = Box::leak(Box::from_raw(request.cast()));
+pub extern "C" fn test(request: *mut c_void, done: *mut c_int, sizes: *mut c_int) -> ncclResult_t {
+    let request: &mut Request = unsafe { Box::leak(Box::from_raw(request.cast())) };
 
     match request {
         Request::Send(req) => {
@@ -278,15 +274,19 @@ pub unsafe extern "C" fn test(
                 .recv(&mut [], HomaRecvmsgFlags::NONBLOCKING, req.id)
             {
                 Ok((_, _, _, cookie)) => {
-                    *done = 1;
-                    if sizes != null_mut() {
-                        *sizes = cookie.try_into().unwrap();
+                    unsafe {
+                        *done = 1;
+                        if sizes != null_mut() {
+                            *sizes = cookie.try_into().unwrap();
+                        }
                     }
                     // FIXME: drop request handle
                     ncclResult_t::ncclSuccess
                 }
                 Err(err) if err.kind() == ErrorKind::WouldBlock => {
-                    *done = 0;
+                    unsafe {
+                        *done = 0;
+                    }
                     ncclResult_t::ncclSuccess
                 }
                 Err(err) => panic!("{}", err),
@@ -298,16 +298,20 @@ pub unsafe extern "C" fn test(
             0,
         ) {
             Ok((length, addr, id, _)) => {
-                *done = 1;
-                if sizes != null_mut() {
-                    *sizes = length.try_into().unwrap();
+                unsafe {
+                    *done = 1;
+                    if sizes != null_mut() {
+                        *sizes = length.try_into().unwrap();
+                    }
                 }
                 // FIXME: drop request handle
                 req.comm.socket.send(&[], addr, id, 0).unwrap();
                 ncclResult_t::ncclSuccess
             }
             Err(err) if err.kind() == ErrorKind::WouldBlock => {
-                *done = 0;
+                unsafe {
+                    *done = 0;
+                }
                 ncclResult_t::ncclSuccess
             }
             Err(err) => panic!("{}", err),

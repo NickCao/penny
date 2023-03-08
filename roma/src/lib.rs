@@ -1,7 +1,7 @@
 #![feature(int_roundings)]
 #![feature(default_free_fn)]
 
-use libc::c_void;
+
 use memmap2::{MmapMut, MmapOptions};
 use nix::sys::socket::setsockopt;
 use socket2::{Domain, SockAddr, Socket, Type};

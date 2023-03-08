@@ -39,15 +39,15 @@ fn main() {
     }
     let mut handle = [0u8; NCCL_NET_HANDLE_MAXSIZE as usize];
     let mut listen_comm: *mut c_void = null_mut();
-    let ret = unsafe { listen(0, handle.as_mut_ptr().cast(), &mut listen_comm) };
+    let ret = listen(0, handle.as_mut_ptr().cast(), &mut listen_comm);
     assert_eq!(ret, ncclResult_t::ncclSuccess);
 
     let mut send_comm: *mut c_void = null_mut();
-    let ret = unsafe { connect(0, handle.as_mut_ptr().cast(), &mut send_comm) };
+    let ret = connect(0, handle.as_mut_ptr().cast(), &mut send_comm);
     assert_eq!(ret, ncclResult_t::ncclSuccess);
 
     let mut recv_comm: *mut c_void = null_mut();
-    let ret = unsafe { accept(listen_comm, &mut recv_comm) };
+    let ret = accept(listen_comm, &mut recv_comm);
     assert_eq!(ret, ncclResult_t::ncclSuccess);
 
     let mut data = b"hello penny\0".to_vec();

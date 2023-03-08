@@ -5,7 +5,7 @@ use crate::homa::*;
 use core::slice;
 use homa::ListenComm;
 use nccl_net_sys::*;
-use socket2::SockAddr;
+
 use std::ffi::CString;
 use std::ffi::{c_int, c_void};
 mod homa;

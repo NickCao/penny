@@ -7,7 +7,7 @@ use nccl_net_sys::*;
 use socket2::SockAddr;
 use std::ffi::CString;
 use std::ffi::{c_int, c_void};
-pub mod homa;
+mod homa;
 
 static mut LOGGER: ncclDebugLogger_t = None;
 

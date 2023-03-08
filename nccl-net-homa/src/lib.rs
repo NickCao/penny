@@ -269,21 +269,18 @@ pub unsafe extern "C" fn test(
     sizes: *mut c_int,
 ) -> ncclResult_t {
     let request: &mut Request = Box::leak(Box::from_raw(request.cast()));
-    let mut tmp = [0u8; 8];
 
     match request {
         Request::Send(req) => {
             match req
                 .comm
                 .socket
-                .recv(&mut tmp, HomaRecvmsgFlags::NONBLOCKING, req.id)
+                .recv(&mut [], HomaRecvmsgFlags::NONBLOCKING, req.id)
             {
                 Ok((_, _, _, cookie)) => {
                     *done = 1;
                     if sizes != null_mut() {
-                        let size = u64::from_be_bytes(tmp);
-                        assert_eq!(size, cookie);
-                        *sizes = size.try_into().unwrap();
+                        *sizes = cookie.try_into().unwrap();
                     }
                     // FIXME: drop request handle
                     ncclResult_t::ncclSuccess
@@ -306,10 +303,7 @@ pub unsafe extern "C" fn test(
                     *sizes = length.try_into().unwrap();
                 }
                 // FIXME: drop request handle
-                req.comm
-                    .socket
-                    .send(&(length as u64).to_be_bytes(), addr, id, 0)
-                    .unwrap();
+                req.comm.socket.send(&[], addr, id, 0).unwrap();
                 ncclResult_t::ncclSuccess
             }
             Err(err) if err.kind() == ErrorKind::WouldBlock => {

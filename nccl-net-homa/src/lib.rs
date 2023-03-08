@@ -4,15 +4,15 @@ use core::slice;
 use nccl_net_sys::ncclDebugLogSubSys as sys;
 use nccl_net_sys::*;
 use roma::{
-    consts::{HomaRecvmsgFlags, HOMA_MAX_MESSAGE_LENGTH},
+    consts::{HomaRecvmsgFlags},
     HomaSocket,
 };
-use socket2::{Domain, SockAddr};
+use socket2::{Domain};
 use std::{
     ffi::CString,
     ffi::{c_int, c_void},
     io::ErrorKind,
-    net::{IpAddr, SocketAddr, ToSocketAddrs},
+    net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs},
     ptr::null_mut,
 };
 
@@ -128,7 +128,7 @@ pub unsafe extern "C" fn listen(
                 false
             }
         })
-        .unwrap();
+        .unwrap_or_else(|| IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)));
     let socket = HomaSocket::new(Domain::IPV4, 1000).unwrap();
     socket
         .socket

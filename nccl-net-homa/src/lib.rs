@@ -6,6 +6,7 @@ use core::slice;
 use homa::ListenComm;
 use log::Level;
 use nccl_net_sys::*;
+use std::ptr::null_mut;
 
 use std::ffi::CString;
 use std::ffi::{c_int, c_void};
@@ -141,7 +142,11 @@ pub extern "C" fn isend(
     let data = unsafe { slice::from_raw_parts(data.cast(), size) };
     let send_comm = unsafe { &mut *(send_comm as *mut SendComm) };
     let (req, result) = Homa::isend(send_comm, data);
-    unsafe { *(request as *mut *mut Request) = Box::into_raw(Box::new(req)) };
+    if let Some(req) = req {
+        unsafe { *(request as *mut *mut Request) = Box::into_raw(Box::new(req)) };
+    } else {
+        unsafe { *(request as *mut *mut Request) = null_mut() };
+    }
     result
 }
 

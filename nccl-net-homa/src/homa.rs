@@ -30,6 +30,7 @@ pub struct ListenComm {
 pub struct SendComm {
     socket: HomaSocket,
     remote: SocketAddr,
+    inflight: bool,
 }
 
 pub struct RecvComm {
@@ -118,6 +119,7 @@ impl Homa {
         let comm = SendComm {
             socket,
             remote: handle.parse().unwrap(),
+            inflight: false,
         };
 
         (comm, ncclResult_t::ncclSuccess)
@@ -151,7 +153,11 @@ impl Homa {
     pub fn isend<'a, 'b, 'c>(
         send_comm: &'a mut SendComm,
         buf: &'b [u8],
-    ) -> (Request<'a, 'c>, ncclResult_t) {
+    ) -> (Option<Request<'a, 'c>>, ncclResult_t) {
+        if send_comm.inflight {
+            return (None, ncclResult_t::ncclSuccess);
+        }
+        send_comm.inflight = true;
         let id = send_comm
             .socket
             .send(
@@ -162,10 +168,10 @@ impl Homa {
             )
             .unwrap();
         (
-            Request::Send(SendRequest {
+            Some(Request::Send(SendRequest {
                 comm: send_comm,
                 id,
-            }),
+            })),
             ncclResult_t::ncclSuccess,
         )
     }
@@ -201,6 +207,7 @@ impl Homa {
                             *size = cookie.try_into().unwrap();
                         }
                         // FIXME: drop request handle
+                        req.comm.inflight = false;
                         ncclResult_t::ncclSuccess
                     }
                     Err(err) if err.kind() == ErrorKind::WouldBlock => {

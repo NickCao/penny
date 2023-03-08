@@ -63,11 +63,15 @@ pub extern "C" fn init(logger: ncclDebugLogger_t) -> ncclResult_t {
     unsafe {
         LOGGER = logger;
     }
+
     ncclResult_t::ncclSuccess
 }
 
-pub unsafe extern "C" fn devices(ndev: *mut c_int) -> ncclResult_t {
+pub extern "C" fn devices(ndev: *mut c_int) -> ncclResult_t {
+    let ndev = unsafe { ndev.as_mut().unwrap() };
+
     *ndev = 1;
+
     ncclResult_t::ncclSuccess
 }
 

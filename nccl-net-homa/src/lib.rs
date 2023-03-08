@@ -5,10 +5,8 @@ use homa::ListenComm;
 
 use nccl_net_sys::*;
 
-use socket2::{SockAddr};
-use std::{
-    ffi::{c_int, c_void},
-};
+use socket2::SockAddr;
+use std::ffi::{c_int, c_void};
 
 use crate::homa::*;
 
@@ -132,7 +130,7 @@ pub extern "C" fn irecv(
 }
 
 pub extern "C" fn test(request: *mut c_void, done: *mut c_int, sizes: *mut c_int) -> ncclResult_t {
-    let request: &mut Request = unsafe { Box::leak(Box::from_raw(request.cast())) };
+    let request: &mut Request = unsafe { &mut *request.cast() };
     let done = unsafe { done.as_mut().unwrap() };
     let sizes = unsafe { sizes.as_mut() }; // FIXME: sizes is an array
     Homa::test(request, done, sizes)

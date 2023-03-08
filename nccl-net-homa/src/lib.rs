@@ -13,6 +13,8 @@ use std::{
     ptr::null_mut,
 };
 
+mod homa;
+
 static mut LOGGER: ncclDebugLogger_t = None;
 
 macro_rules! log {

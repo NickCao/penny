@@ -187,7 +187,7 @@ pub unsafe extern "C" fn accept(
     ncclResult_t::ncclSuccess
 }
 
-unsafe extern "C" fn reg_mr(
+extern "C" fn reg_mr(
     _comm: *mut c_void,
     _data: *mut c_void,
     _size: c_int,
@@ -201,7 +201,7 @@ unsafe extern "C" fn reg_mr(
     }
 }
 
-unsafe extern "C" fn dereg_mr(_comm: *mut c_void, _mhandle: *mut c_void) -> ncclResult_t {
+extern "C" fn dereg_mr(_comm: *mut c_void, _mhandle: *mut c_void) -> ncclResult_t {
     ncclResult_t::ncclSuccess
 }
 

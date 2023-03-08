@@ -48,7 +48,7 @@ pub extern "C" fn devices(ndev: *mut c_int) -> ncclResult_t {
         ncclDebugLogSubSys::NCCL_INIT,
         "devices",
     );
-    let ndev = unsafe { ndev.as_mut().unwrap() };
+    let ndev = unsafe { &mut *ndev };
     homa::Homa::devices(ndev)
 }
 
@@ -58,11 +58,11 @@ pub extern "C" fn get_properties(dev: c_int, props: *mut ncclNetProperties_v6_t)
         ncclDebugLogSubSys::NCCL_INIT,
         "get_properties",
     );
-    let props = unsafe { props.as_mut().unwrap() };
+    let props = unsafe { &mut *props };
     homa::Homa::get_properties(dev, props)
 }
 
-pub unsafe extern "C" fn listen(
+pub extern "C" fn listen(
     dev: c_int,
     handle: *mut c_void,
     listen_comm: *mut *mut c_void,
@@ -74,11 +74,11 @@ pub unsafe extern "C" fn listen(
     );
     let handle = unsafe { &mut *(handle as *mut SockAddr) };
     let (comm, result) = homa::Homa::listen(dev, handle);
-    *(listen_comm as *mut *mut ListenComm) = Box::into_raw(Box::new(comm));
+    unsafe { *(listen_comm as *mut *mut ListenComm) = Box::into_raw(Box::new(comm)) };
     result
 }
 
-pub unsafe extern "C" fn connect(
+pub extern "C" fn connect(
     dev: c_int,
     handle: *mut c_void,
     send_comm: *mut *mut c_void,
@@ -90,14 +90,11 @@ pub unsafe extern "C" fn connect(
     );
     let handle = unsafe { &*(handle as *mut SockAddr) };
     let (comm, result) = homa::Homa::connect(dev, handle);
-    *(send_comm as *mut *mut SendComm) = Box::into_raw(Box::new(comm));
+    unsafe { *(send_comm as *mut *mut SendComm) = Box::into_raw(Box::new(comm)) };
     result
 }
 
-pub unsafe extern "C" fn accept(
-    listen_comm: *mut c_void,
-    recv_comm: *mut *mut c_void,
-) -> ncclResult_t {
+pub extern "C" fn accept(listen_comm: *mut c_void, recv_comm: *mut *mut c_void) -> ncclResult_t {
     log!(
         ncclDebugLogLevel::NCCL_LOG_TRACE,
         ncclDebugLogSubSys::NCCL_INIT,
@@ -105,7 +102,7 @@ pub unsafe extern "C" fn accept(
     );
     let listen_comm = unsafe { &mut *(listen_comm as *mut ListenComm) };
     let (comm, result) = Homa::accept(listen_comm);
-    *(recv_comm as *mut *mut RecvComm) = Box::into_raw(Box::new(comm));
+    unsafe { *(recv_comm as *mut *mut RecvComm) = Box::into_raw(Box::new(comm)) };
     result
 }
 
@@ -174,8 +171,8 @@ pub extern "C" fn test(request: *mut c_void, done: *mut c_int, sizes: *mut c_int
         ncclDebugLogSubSys::NCCL_INIT,
         "test",
     );
-    let request: &mut Request = unsafe { &mut *request.cast() };
-    let done = unsafe { done.as_mut().unwrap() };
+    let request = unsafe { &mut *(request as *mut Request) };
+    let done = unsafe { &mut *done };
     let sizes = unsafe { sizes.as_mut() }; // FIXME: sizes is an array
     Homa::test(request, done, sizes)
 }

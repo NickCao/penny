@@ -59,8 +59,10 @@ struct RecvComm {
     socket: HomaSocket,
 }
 
-pub unsafe extern "C" fn init(logger: ncclDebugLogger_t) -> ncclResult_t {
-    LOGGER = logger;
+pub extern "C" fn init(logger: ncclDebugLogger_t) -> ncclResult_t {
+    unsafe {
+        LOGGER = logger;
+    }
     ncclResult_t::ncclSuccess
 }
 

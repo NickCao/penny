@@ -282,25 +282,27 @@ pub unsafe extern "C" fn test(
     let mut tmp = [0u8; 8];
 
     match request {
-        Request::Send(req) => match req.comm.socket.recv(
-            &mut tmp,
-            HomaRecvmsgFlags::RESPONSE | HomaRecvmsgFlags::NONBLOCKING,
-            req.id,
-        ) {
-            Ok((_, _, _, _)) => {
-                *done = 1;
-                if sizes != null_mut() {
-                    *sizes = u64::from_be_bytes(tmp).try_into().unwrap();
+        Request::Send(req) => {
+            match req
+                .comm
+                .socket
+                .recv(&mut tmp, HomaRecvmsgFlags::NONBLOCKING, req.id)
+            {
+                Ok((_, _, _, _)) => {
+                    *done = 1;
+                    if sizes != null_mut() {
+                        *sizes = u64::from_be_bytes(tmp).try_into().unwrap();
+                    }
+                    // FIXME: drop request handle
+                    ncclResult_t::ncclSuccess
                 }
-                // FIXME: drop request handle
-                ncclResult_t::ncclSuccess
+                Err(err) if err.kind() == ErrorKind::WouldBlock => {
+                    *done = 0;
+                    ncclResult_t::ncclSuccess
+                }
+                Err(err) => panic!("{}", err),
             }
-            Err(err) if err.kind() == ErrorKind::WouldBlock => {
-                *done = 0;
-                ncclResult_t::ncclSuccess
-            }
-            Err(err) => panic!("{}", err),
-        },
+        }
         Request::Recv(req) => match req.comm.socket.recv(
             req.buffer,
             HomaRecvmsgFlags::REQUEST | HomaRecvmsgFlags::NONBLOCKING,

@@ -115,16 +115,22 @@ pub unsafe extern "C" fn listen(
         .bind(&(addr, 0).to_socket_addrs().unwrap().next().unwrap().into())
         .unwrap();
 
-    let local = socket.socket.local_addr().unwrap().as_socket().unwrap();
+    let local_port = socket
+        .socket
+        .local_addr()
+        .unwrap()
+        .as_socket()
+        .unwrap()
+        .port();
 
     log!(
         ncclDebugLogLevel::NCCL_LOG_TRACE,
         sys::NCCL_NET | sys::NCCL_INIT,
-        "homa::listen(bind: {})",
-        local,
+        "homa::listen(port: {})",
+        local_port,
     );
 
-    *(handle as *mut SocketAddr) = local;
+    *(handle as *mut SocketAddr) = SocketAddr::new(addr, local_port);
 
     let comm = Box::new(ListenComm {
         socket: Some(socket),

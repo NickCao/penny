@@ -3,11 +3,8 @@
 use core::slice;
 use nccl_net_sys::ncclDebugLogSubSys as sys;
 use nccl_net_sys::*;
-use roma::{
-    consts::{HomaRecvmsgFlags},
-    HomaSocket,
-};
-use socket2::{Domain};
+use roma::{consts::HomaRecvmsgFlags, HomaSocket};
+use socket2::Domain;
 use std::{
     ffi::CString,
     ffi::{c_int, c_void},
@@ -64,20 +61,10 @@ struct RecvComm {
 
 pub unsafe extern "C" fn init(logger: ncclDebugLogger_t) -> ncclResult_t {
     LOGGER = logger;
-    log!(
-        ncclDebugLogLevel::NCCL_LOG_TRACE,
-        sys::NCCL_NET | sys::NCCL_INIT,
-        "init",
-    );
     ncclResult_t::ncclSuccess
 }
 
 pub unsafe extern "C" fn devices(ndev: *mut c_int) -> ncclResult_t {
-    log!(
-        ncclDebugLogLevel::NCCL_LOG_TRACE,
-        sys::NCCL_NET | sys::NCCL_INIT,
-        "devices",
-    );
     *ndev = 1;
     ncclResult_t::ncclSuccess
 }
@@ -86,11 +73,6 @@ pub unsafe extern "C" fn get_properties(
     dev: c_int,
     props: *mut ncclNetProperties_v6_t,
 ) -> ncclResult_t {
-    log!(
-        ncclDebugLogLevel::NCCL_LOG_TRACE,
-        sys::NCCL_NET | sys::NCCL_INIT,
-        "get_properties",
-    );
     assert_eq!(dev, 0);
     *props = ncclNetProperties_v6_t {
         name: "default\0".as_ptr().cast_mut().cast(),

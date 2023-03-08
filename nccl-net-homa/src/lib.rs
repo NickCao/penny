@@ -4,34 +4,25 @@
 use crate::homa::*;
 use core::slice;
 use homa::ListenComm;
-use log::{logger, Level};
+use log::Level;
 use nccl_net_sys::*;
 
 use std::ffi::CString;
 use std::ffi::{c_int, c_void};
 mod homa;
 
-static mut LOGGER: ncclDebugLogger_t = None;
-
-macro_rules! log {
-    ($level:expr, $sys:expr, $($arg:tt)*) => {
-        unsafe {
-            if let Some(logger) = LOGGER {
-                let file = CString::new(file!()).unwrap();
-                let fmt = CString::new(format!($($arg)*)).unwrap();
-                logger(
-                    $level,
-                    $sys.0.try_into().unwrap(),
-                    file.as_ptr(),
-                    line!() as i32,
-                    fmt.as_ptr(),
-                );
-            }
-        }
-    };
-}
+static mut LOGGER: Logger = Logger(None);
 
 struct Logger(ncclDebugLogger_t);
+
+impl Logger {
+    fn init(level: log::LevelFilter, logger: ncclDebugLogger_t) -> Result<(), log::SetLoggerError> {
+        unsafe {
+            LOGGER.0 = logger;
+            log::set_logger(&LOGGER).map(|()| log::set_max_level(level))
+        }
+    }
+}
 
 impl log::Log for Logger {
     fn enabled(&self, _metadata: &log::Metadata) -> bool {
@@ -57,7 +48,7 @@ impl log::Log for Logger {
             unsafe {
                 logger(
                     level,
-                    ncclDebugLogSubSys::NCCL_ALL.0.try_into().unwrap(),
+                    u64::MAX,
                     file.as_ptr(),
                     record.line().unwrap_or_default().try_into().unwrap(),
                     args.as_ptr(),
@@ -70,34 +61,21 @@ impl log::Log for Logger {
 }
 
 pub extern "C" fn init(logger: ncclDebugLogger_t) -> ncclResult_t {
-    log!(
-        ncclDebugLogLevel::NCCL_LOG_TRACE,
-        ncclDebugLogSubSys::NCCL_INIT,
-        "init",
-    );
-    unsafe {
-        LOGGER = logger;
-    }
+    Logger::init(log::LevelFilter::Debug, logger).unwrap();
+
+    log::debug!("init");
 
     ncclResult_t::ncclSuccess
 }
 
 pub extern "C" fn devices(ndev: *mut c_int) -> ncclResult_t {
-    log!(
-        ncclDebugLogLevel::NCCL_LOG_TRACE,
-        ncclDebugLogSubSys::NCCL_INIT,
-        "devices",
-    );
+    log::debug!("devices");
     let ndev = unsafe { &mut *ndev };
     homa::Homa::devices(ndev)
 }
 
 pub extern "C" fn get_properties(dev: c_int, props: *mut ncclNetProperties_v6_t) -> ncclResult_t {
-    log!(
-        ncclDebugLogLevel::NCCL_LOG_TRACE,
-        ncclDebugLogSubSys::NCCL_INIT,
-        "get_properties",
-    );
+    log::debug!("get_properties");
     let props = unsafe { &mut *props };
     homa::Homa::get_properties(dev, props)
 }
@@ -107,11 +85,7 @@ pub extern "C" fn listen(
     handle: *mut c_void,
     listen_comm: *mut *mut c_void,
 ) -> ncclResult_t {
-    log!(
-        ncclDebugLogLevel::NCCL_LOG_TRACE,
-        ncclDebugLogSubSys::NCCL_INIT,
-        "listen",
-    );
+    log::debug!("listen");
     let handle =
         unsafe { slice::from_raw_parts_mut(handle as *mut u8, NCCL_NET_HANDLE_MAXSIZE as usize) };
     let (comm, result) = homa::Homa::listen(dev, handle);
@@ -124,11 +98,7 @@ pub extern "C" fn connect(
     handle: *mut c_void,
     send_comm: *mut *mut c_void,
 ) -> ncclResult_t {
-    log!(
-        ncclDebugLogLevel::NCCL_LOG_TRACE,
-        ncclDebugLogSubSys::NCCL_INIT,
-        "connect",
-    );
+    log::debug!("connect");
     let handle =
         unsafe { slice::from_raw_parts(handle as *const u8, NCCL_NET_HANDLE_MAXSIZE as usize) };
     let (comm, result) = homa::Homa::connect(dev, handle);
@@ -137,11 +107,7 @@ pub extern "C" fn connect(
 }
 
 pub extern "C" fn accept(listen_comm: *mut c_void, recv_comm: *mut *mut c_void) -> ncclResult_t {
-    log!(
-        ncclDebugLogLevel::NCCL_LOG_TRACE,
-        ncclDebugLogSubSys::NCCL_INIT,
-        "accept",
-    );
+    log::debug!("accept");
     let listen_comm = unsafe { &mut *(listen_comm as *mut ListenComm) };
     let (comm, result) = Homa::accept(listen_comm);
     unsafe { *(recv_comm as *mut *mut RecvComm) = Box::into_raw(Box::new(comm)) };
@@ -170,11 +136,7 @@ pub extern "C" fn isend(
     _mhandle: *mut c_void,
     request: *mut *mut c_void,
 ) -> ncclResult_t {
-    log!(
-        ncclDebugLogLevel::NCCL_LOG_TRACE,
-        ncclDebugLogSubSys::NCCL_INIT,
-        "isend",
-    );
+    log::debug!("isend");
     let size: usize = size.try_into().unwrap();
     let data = unsafe { slice::from_raw_parts(data.cast(), size) };
     let send_comm = unsafe { &mut *(send_comm as *mut SendComm) };
@@ -192,11 +154,7 @@ pub extern "C" fn irecv(
     _mhandles: *mut *mut c_void,
     request: *mut *mut c_void,
 ) -> ncclResult_t {
-    log!(
-        ncclDebugLogLevel::NCCL_LOG_TRACE,
-        ncclDebugLogSubSys::NCCL_INIT,
-        "irecv",
-    );
+    log::debug!("irecv");
     let n: usize = n.try_into().unwrap();
     let data = unsafe { slice::from_raw_parts(data, n) };
     let sizes = unsafe { slice::from_raw_parts(sizes, n) };
@@ -208,11 +166,7 @@ pub extern "C" fn irecv(
 }
 
 pub extern "C" fn test(request: *mut c_void, done: *mut c_int, sizes: *mut c_int) -> ncclResult_t {
-    log!(
-        ncclDebugLogLevel::NCCL_LOG_TRACE,
-        ncclDebugLogSubSys::NCCL_INIT,
-        "test",
-    );
+    log::debug!("test");
     let request = unsafe { &mut *(request as *mut Request) };
     let done = unsafe { &mut *done };
     let sizes = unsafe { sizes.as_mut() }; // FIXME: sizes is an array

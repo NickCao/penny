@@ -305,18 +305,18 @@ pub extern "C" fn test(request: *mut c_void, done: *mut c_int, sizes: *mut c_int
     }
 }
 
-pub unsafe extern "C" fn close_send(send_comm: *mut c_void) -> ncclResult_t {
-    drop(Box::from_raw(send_comm as *mut SendComm));
+pub extern "C" fn close_send(send_comm: *mut c_void) -> ncclResult_t {
+    unsafe { drop(Box::from_raw(send_comm as *mut SendComm)) };
     ncclResult_t::ncclSuccess
 }
 
-pub unsafe extern "C" fn close_recv(recv_comm: *mut c_void) -> ncclResult_t {
-    drop(Box::from_raw(recv_comm as *mut RecvComm));
+pub extern "C" fn close_recv(recv_comm: *mut c_void) -> ncclResult_t {
+    unsafe { drop(Box::from_raw(recv_comm as *mut RecvComm)) };
     ncclResult_t::ncclSuccess
 }
 
-pub unsafe extern "C" fn close_listen(listen_comm: *mut c_void) -> ncclResult_t {
-    drop(Box::from_raw(listen_comm as *mut ListenComm));
+pub extern "C" fn close_listen(listen_comm: *mut c_void) -> ncclResult_t {
+    unsafe { drop(Box::from_raw(listen_comm as *mut ListenComm)) };
     ncclResult_t::ncclSuccess
 }
 

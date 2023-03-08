@@ -318,6 +318,7 @@ name = "nccl-net-homa"
 version = "0.1.0"
 dependencies = [
  "if-addrs",
+ "log",
  "nccl-net-sys",
  "roma",
  "socket2",

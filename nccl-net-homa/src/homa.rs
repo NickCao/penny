@@ -1,6 +1,6 @@
 use nccl_net_sys::*;
 use roma::{consts::HomaRecvmsgFlags, HomaSocket};
-use socket2::{Domain, SockAddr};
+use socket2::Domain;
 use std::{
     ffi::{c_int, c_void, CStr, CString},
     io::ErrorKind,
@@ -29,7 +29,7 @@ pub struct ListenComm {
 
 pub struct SendComm {
     socket: HomaSocket,
-    remote: SockAddr,
+    remote: SocketAddr,
 }
 
 pub struct RecvComm {
@@ -109,17 +109,15 @@ impl Homa {
     pub fn connect(dev: c_int, handle: &[u8]) -> (SendComm, ncclResult_t) {
         assert_eq!(dev, 0);
 
-        let h = CStr::from_bytes_until_nul(handle)
+        let handle = CStr::from_bytes_until_nul(handle)
             .unwrap()
             .to_str()
             .unwrap();
 
-        let remote: SocketAddr = h.parse().unwrap();
-
         let socket = HomaSocket::new(Domain::IPV4, 1000).unwrap();
         let comm = SendComm {
             socket,
-            remote: remote.into(),
+            remote: handle.parse().unwrap(),
         };
 
         (comm, ncclResult_t::ncclSuccess)

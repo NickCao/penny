@@ -75,23 +75,26 @@ pub extern "C" fn devices(ndev: *mut c_int) -> ncclResult_t {
     ncclResult_t::ncclSuccess
 }
 
-pub unsafe extern "C" fn get_properties(
-    dev: c_int,
-    props: *mut ncclNetProperties_v6_t,
-) -> ncclResult_t {
-    assert_eq!(dev, 0);
-    *props = ncclNetProperties_v6_t {
-        name: "default\0".as_ptr().cast_mut().cast(),
-        pciPath: null_mut(),
-        guid: 0,
-        ptrSupport: NCCL_PTR_HOST as i32,
-        speed: 1000,
-        port: 0,
-        latency: 0.0,
-        maxComms: i32::MAX,
-        maxRecvs: 1,
-    };
-    ncclResult_t::ncclSuccess
+pub extern "C" fn get_properties(dev: c_int, props: *mut ncclNetProperties_v6_t) -> ncclResult_t {
+    let props = unsafe { props.as_mut().unwrap() };
+
+    if dev == 0 {
+        *props = ncclNetProperties_v6_t {
+            name: "default\0".as_ptr().cast_mut().cast(),
+            pciPath: null_mut(),
+            guid: 0,
+            ptrSupport: NCCL_PTR_HOST as i32,
+            speed: 1000,
+            port: 0,
+            latency: 0.0,
+            maxComms: i32::MAX,
+            maxRecvs: 1,
+        };
+
+        ncclResult_t::ncclSuccess
+    } else {
+        ncclResult_t::ncclInternalError
+    }
 }
 
 pub unsafe extern "C" fn listen(

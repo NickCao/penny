@@ -185,7 +185,6 @@ unsafe extern "C" fn reg_mr(
     type_: c_int,
     _mhandle: *mut *mut c_void,
 ) -> ncclResult_t {
-    log!(ncclDebugLogLevel::NCCL_LOG_TRACE, sys::NCCL_NET, "reg_mr");
     if type_ != NCCL_PTR_HOST as i32 {
         ncclResult_t::ncclInternalError
     } else {
@@ -194,7 +193,6 @@ unsafe extern "C" fn reg_mr(
 }
 
 unsafe extern "C" fn dereg_mr(_comm: *mut c_void, _mhandle: *mut c_void) -> ncclResult_t {
-    log!(ncclDebugLogLevel::NCCL_LOG_TRACE, sys::NCCL_NET, "dereg_mr");
     ncclResult_t::ncclSuccess
 }
 
@@ -220,7 +218,10 @@ pub unsafe extern "C" fn isend(
     let size: usize = size.try_into().unwrap();
     let data = slice::from_raw_parts(data.cast(), size);
 
-    let id = comm.socket.send(data, comm.remote.into(), 0, 0).unwrap();
+    let id = comm
+        .socket
+        .send(data, comm.remote.into(), 0, size.try_into().unwrap())
+        .unwrap();
 
     *request = Box::into_raw(Box::new(Request::Send(SendRequest { id, comm }))).cast();
 
@@ -268,6 +269,7 @@ pub unsafe extern "C" fn test(
     done: *mut c_int,
     sizes: *mut c_int,
 ) -> ncclResult_t {
+    /*
     log!(
         ncclDebugLogLevel::NCCL_LOG_TRACE,
         sys::NCCL_INIT | sys::NCCL_NET,
@@ -276,6 +278,7 @@ pub unsafe extern "C" fn test(
         done,
         sizes,
     );
+    */
 
     let request: &mut Request = &mut *request.cast();
 
@@ -288,10 +291,12 @@ pub unsafe extern "C" fn test(
                 .socket
                 .recv(&mut tmp, HomaRecvmsgFlags::NONBLOCKING, req.id)
             {
-                Ok((_, _, _, _)) => {
+                Ok((_, _, _, cookie)) => {
                     *done = 1;
                     if sizes != null_mut() {
-                        *sizes = u64::from_be_bytes(tmp).try_into().unwrap();
+                        let size = u64::from_be_bytes(tmp);
+                        assert_eq!(size, cookie);
+                        *sizes = size.try_into().unwrap();
                     }
                     // FIXME: drop request handle
                     ncclResult_t::ncclSuccess
@@ -330,31 +335,16 @@ pub unsafe extern "C" fn test(
 }
 
 pub unsafe extern "C" fn close_send(send_comm: *mut c_void) -> ncclResult_t {
-    log!(
-        ncclDebugLogLevel::NCCL_LOG_TRACE,
-        sys::NCCL_NET,
-        "close_send"
-    );
     drop(Box::from_raw(send_comm as *mut SendComm));
     ncclResult_t::ncclSuccess
 }
 
 pub unsafe extern "C" fn close_recv(recv_comm: *mut c_void) -> ncclResult_t {
-    log!(
-        ncclDebugLogLevel::NCCL_LOG_TRACE,
-        sys::NCCL_NET,
-        "close_recv"
-    );
     drop(Box::from_raw(recv_comm as *mut RecvComm));
     ncclResult_t::ncclSuccess
 }
 
 pub unsafe extern "C" fn close_listen(listen_comm: *mut c_void) -> ncclResult_t {
-    log!(
-        ncclDebugLogLevel::NCCL_LOG_TRACE,
-        sys::NCCL_NET,
-        "close_listen"
-    );
     drop(Box::from_raw(listen_comm as *mut ListenComm));
     ncclResult_t::ncclSuccess
 }

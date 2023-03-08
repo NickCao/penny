@@ -1,45 +1,42 @@
-use core::slice;
-use nccl_net_sys::ncclDebugLogSubSys as sys;
 use nccl_net_sys::*;
 use roma::{consts::HomaRecvmsgFlags, HomaSocket};
 use socket2::{Domain, SockAddr};
 use std::{
-    ffi::CString,
     ffi::{c_int, c_void},
     io::ErrorKind,
     net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs},
     ptr::null_mut,
 };
 
-enum Request<'a, 'b> {
+pub enum Request<'a, 'b> {
     Send(SendRequest<'a>),
     Recv(RecvRequest<'a, 'b>),
 }
 
-struct SendRequest<'a> {
+pub struct SendRequest<'a> {
     comm: &'a mut SendComm,
     id: u64,
 }
 
-struct RecvRequest<'a, 'b> {
+pub struct RecvRequest<'a, 'b> {
     comm: &'a mut RecvComm,
     buffer: &'b mut [u8],
 }
 
-struct ListenComm {
+pub struct ListenComm {
     socket: Option<HomaSocket>,
 }
 
-struct SendComm {
+pub struct SendComm {
     socket: HomaSocket,
-    remote: SocketAddr,
+    remote: SockAddr,
 }
 
-struct RecvComm {
+pub struct RecvComm {
     socket: HomaSocket,
 }
 
-struct Homa {}
+pub struct Homa {}
 
 impl Homa {
     pub fn devices(ndev: &mut c_int) -> ncclResult_t {
@@ -107,7 +104,7 @@ impl Homa {
         (comm, ncclResult_t::ncclSuccess)
     }
 
-    pub fn connect(dev: c_int, handle: &SocketAddr) -> (SendComm, ncclResult_t) {
+    pub fn connect(dev: c_int, handle: &SockAddr) -> (SendComm, ncclResult_t) {
         assert_eq!(dev, 0);
 
         let socket = HomaSocket::new(Domain::IPV4, 1000).unwrap();
@@ -152,7 +149,7 @@ impl Homa {
             .socket
             .send(
                 buf,
-                send_comm.remote.into(),
+                send_comm.remote.clone(),
                 0,
                 buf.len().try_into().unwrap(),
             )
@@ -229,15 +226,15 @@ impl Homa {
         }
     }
 
-    pub fn close_send(send_comm: SendComm) -> ncclResult_t {
+    pub fn close_send(_send_comm: SendComm) -> ncclResult_t {
         ncclResult_t::ncclSuccess
     }
 
-    pub fn close_recv(recv_comm: RecvComm) -> ncclResult_t {
+    pub fn close_recv(_recv_comm: RecvComm) -> ncclResult_t {
         ncclResult_t::ncclSuccess
     }
 
-    pub fn close_listen(listen_comm: ListenComm) -> ncclResult_t {
+    pub fn close_listen(_listen_comm: ListenComm) -> ncclResult_t {
         ncclResult_t::ncclSuccess
     }
 }

@@ -2,7 +2,7 @@ use nccl_net_sys::*;
 use roma::{consts::HomaRecvmsgFlags, HomaSocket};
 use socket2::{Domain, SockAddr};
 use std::{
-    ffi::{c_int, c_void},
+    ffi::{c_int, c_void, CStr, CString},
     io::ErrorKind,
     net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs},
     ptr::null_mut,
@@ -64,7 +64,7 @@ impl Homa {
         }
     }
 
-    pub fn listen(dev: c_int, handle: &mut SockAddr) -> (ListenComm, ncclResult_t) {
+    pub fn listen(dev: c_int, handle: &mut [u8]) -> (ListenComm, ncclResult_t) {
         assert_eq!(dev, 0);
 
         let addr = if_addrs::get_if_addrs()
@@ -95,7 +95,9 @@ impl Homa {
             .unwrap()
             .port();
 
-        *handle = SocketAddr::new(addr, local_port).into();
+        let h = CString::new(SocketAddr::new(addr, local_port).to_string()).unwrap();
+        let hr = h.as_bytes_with_nul();
+        handle[..hr.len()].copy_from_slice(hr);
 
         let comm = ListenComm {
             socket: Some(socket),
@@ -104,13 +106,20 @@ impl Homa {
         (comm, ncclResult_t::ncclSuccess)
     }
 
-    pub fn connect(dev: c_int, handle: &SockAddr) -> (SendComm, ncclResult_t) {
+    pub fn connect(dev: c_int, handle: &[u8]) -> (SendComm, ncclResult_t) {
         assert_eq!(dev, 0);
+
+        let h = CStr::from_bytes_until_nul(handle)
+            .unwrap()
+            .to_str()
+            .unwrap();
+
+        let remote: SocketAddr = h.parse().unwrap();
 
         let socket = HomaSocket::new(Domain::IPV4, 1000).unwrap();
         let comm = SendComm {
             socket,
-            remote: handle.clone(),
+            remote: remote.into(),
         };
 
         (comm, ncclResult_t::ncclSuccess)

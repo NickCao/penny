@@ -1,4 +1,5 @@
 #![feature(ip)]
+#![feature(cstr_from_bytes_until_nul)]
 
 use crate::homa::*;
 use core::slice;
@@ -72,7 +73,8 @@ pub extern "C" fn listen(
         ncclDebugLogSubSys::NCCL_INIT,
         "listen",
     );
-    let handle = unsafe { &mut *(handle as *mut SockAddr) };
+    let handle =
+        unsafe { slice::from_raw_parts_mut(handle as *mut u8, NCCL_NET_HANDLE_MAXSIZE as usize) };
     let (comm, result) = homa::Homa::listen(dev, handle);
     unsafe { *(listen_comm as *mut *mut ListenComm) = Box::into_raw(Box::new(comm)) };
     result
@@ -88,7 +90,8 @@ pub extern "C" fn connect(
         ncclDebugLogSubSys::NCCL_INIT,
         "connect",
     );
-    let handle = unsafe { &*(handle as *mut SockAddr) };
+    let handle =
+        unsafe { slice::from_raw_parts(handle as *const u8, NCCL_NET_HANDLE_MAXSIZE as usize) };
     let (comm, result) = homa::Homa::connect(dev, handle);
     unsafe { *(send_comm as *mut *mut SendComm) = Box::into_raw(Box::new(comm)) };
     result

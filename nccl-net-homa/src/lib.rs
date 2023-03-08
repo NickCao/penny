@@ -4,65 +4,15 @@
 use crate::homa::*;
 use core::slice;
 use homa::ListenComm;
-use log::Level;
 use nccl_net_sys::*;
+use std::ffi::{c_int, c_void};
 use std::ptr::null_mut;
 
-use std::ffi::CString;
-use std::ffi::{c_int, c_void};
-mod homa;
-
-static mut LOGGER: Logger = Logger(None);
-
-struct Logger(ncclDebugLogger_t);
-
-impl Logger {
-    fn init(level: log::LevelFilter, logger: ncclDebugLogger_t) -> Result<(), log::SetLoggerError> {
-        unsafe {
-            LOGGER.0 = logger;
-            log::set_logger(&LOGGER).map(|()| log::set_max_level(level))
-        }
-    }
-}
-
-impl log::Log for Logger {
-    fn enabled(&self, _metadata: &log::Metadata) -> bool {
-        true
-    }
-
-    fn log(&self, record: &log::Record) {
-        if let Some(logger) = self.0 {
-            let level = match record.level() {
-                Level::Error => ncclDebugLogLevel::NCCL_LOG_WARN,
-                Level::Warn => ncclDebugLogLevel::NCCL_LOG_WARN,
-                Level::Info => ncclDebugLogLevel::NCCL_LOG_INFO,
-                Level::Debug => ncclDebugLogLevel::NCCL_LOG_TRACE,
-                Level::Trace => ncclDebugLogLevel::NCCL_LOG_TRACE,
-            };
-
-            let file = record.file().unwrap_or_default();
-            let file = CString::new(file).unwrap_or_default();
-
-            let args = format!("{}", record.args());
-            let args = CString::new(args).unwrap_or_default();
-
-            unsafe {
-                logger(
-                    level,
-                    u64::MAX,
-                    file.as_ptr(),
-                    record.line().unwrap_or_default().try_into().unwrap(),
-                    args.as_ptr(),
-                );
-            }
-        }
-    }
-
-    fn flush(&self) {}
-}
+pub mod homa;
+pub mod logger;
 
 pub extern "C" fn init(logger: ncclDebugLogger_t) -> ncclResult_t {
-    Logger::init(log::LevelFilter::Debug, logger).unwrap();
+    logger::Logger::init(log::LevelFilter::Debug, logger).unwrap();
 
     log::debug!("init");
 
@@ -195,7 +145,7 @@ pub extern "C" fn close_listen(listen_comm: *mut c_void) -> ncclResult_t {
 
 #[no_mangle]
 pub static mut ncclNetPlugin_v6: ncclNet_v6_t = ncclNet_v6_t {
-    name: b"example\0".as_ptr().cast(),
+    name: b"homa\0".as_ptr().cast(),
     init: Some(init),
     devices: Some(devices),
     getProperties: Some(get_properties),

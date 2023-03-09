@@ -162,7 +162,7 @@ impl Homa {
             .socket
             .send(
                 buf,
-                send_comm.remote.clone(),
+                send_comm.remote,
                 0,
                 buf.len().try_into().unwrap(),
             )

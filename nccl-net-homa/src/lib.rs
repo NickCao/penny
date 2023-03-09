@@ -3,7 +3,6 @@
 
 use crate::homa::*;
 use core::slice;
-use homa::ListenComm;
 use nccl_net_sys::*;
 use std::ffi::{c_int, c_void};
 use std::ptr::null_mut;

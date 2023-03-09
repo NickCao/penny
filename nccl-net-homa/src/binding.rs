@@ -1,4 +1,4 @@
-use crate::homa::Homa;
+use crate::homa::{Homa, Request};
 use core::slice;
 use nccl_net_sys::{
     ncclDebugLogger_t, ncclNetProperties_v6_t, ncclResult_t, NCCL_NET_HANDLE_MAXSIZE,
@@ -146,13 +146,14 @@ pub(super) unsafe extern "C" fn test(
     done: *mut c_int,
     sizes: *mut c_int,
 ) -> ncclResult_t {
-    let request = &mut *(request.cast());
-    match Homa::test(request) {
+    let request: *mut Request = request.cast();
+    let result = match Homa::test(&mut *request) {
         Ok(Some(size)) => {
             *done = 1;
             if let Some(sizes) = sizes.as_mut() {
                 *sizes = size
             }
+            drop(Box::from_raw(request));
             ncclResult_t::ncclSuccess
         }
         Ok(None) => {
@@ -160,7 +161,8 @@ pub(super) unsafe extern "C" fn test(
             ncclResult_t::ncclSuccess
         }
         Err(err) => err.into(),
-    }
+    };
+    result
 }
 
 pub(super) unsafe extern "C" fn close_send(send_comm: *mut c_void) -> ncclResult_t {

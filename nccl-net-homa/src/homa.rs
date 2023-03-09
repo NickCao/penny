@@ -163,9 +163,9 @@ impl Homa {
         }))
     }
 
-    pub fn test(request: &mut Option<Request>) -> Result<Option<i32>> {
+    pub fn test(request: &mut Request) -> Result<Option<i32>> {
         match request {
-            Some(Request::Send(req)) => {
+            Request::Send(req) => {
                 match req
                     .comm
                     .socket
@@ -173,27 +173,24 @@ impl Homa {
                 {
                     Ok((_, _, _, cookie)) => {
                         req.comm.inflight = false;
-                        request.take();
                         Ok(Some(cookie.try_into().unwrap()))
                     }
                     Err(err) if err.kind() == ErrorKind::WouldBlock => Ok(None),
                     Err(err) => Err(err)?,
                 }
             }
-            Some(Request::Recv(req)) => match req.comm.socket.recv(
+            Request::Recv(req) => match req.comm.socket.recv(
                 req.buffer,
                 HomaRecvmsgFlags::REQUEST | HomaRecvmsgFlags::NONBLOCKING,
                 0,
             ) {
                 Ok((length, addr, id, _)) => {
                     req.comm.socket.send(&[], addr, id, 0).unwrap();
-                    request.take();
                     Ok(Some(length.try_into().unwrap()))
                 }
                 Err(err) if err.kind() == ErrorKind::WouldBlock => Ok(None),
                 Err(err) => Err(err)?,
             },
-            None => Err(Error::Internal),
         }
     }
 

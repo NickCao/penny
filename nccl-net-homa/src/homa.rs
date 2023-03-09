@@ -1,9 +1,10 @@
 use crate::error::{Error, Result};
+use log::LevelFilter;
 use nccl_net_sys::*;
 use roma::{consts::HomaRecvmsgFlags, HomaSocket};
 use socket2::Domain;
 use std::{
-    ffi::{c_int, c_void, CStr, CString},
+    ffi::{c_int, CStr, CString},
     io::ErrorKind,
     net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs},
     ptr::null_mut,
@@ -41,6 +42,11 @@ pub struct RecvComm {
 pub struct Homa {}
 
 impl Homa {
+    pub fn init(logger: ncclDebugLogger_t) -> Result<()> {
+        crate::logger::Logger::init(LevelFilter::Debug, logger).unwrap();
+        Ok(())
+    }
+
     pub fn devices() -> Result<i32> {
         Ok(1)
     }
@@ -168,7 +174,7 @@ impl Homa {
                     Ok((_, _, _, cookie)) => {
                         req.comm.inflight = false;
                         drop(request.take());
-                        return Ok(Some(cookie.try_into().unwrap()));
+                        Ok(Some(cookie.try_into().unwrap()))
                     }
                     Err(err) if err.kind() == ErrorKind::WouldBlock => Ok(None),
                     Err(err) => Err(err)?,

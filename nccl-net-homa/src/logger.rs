@@ -1,5 +1,5 @@
 use log::Level;
-use nccl_net_sys::*;
+use nccl_net_sys::{ncclDebugLogLevel, ncclDebugLogger_t};
 use std::ffi::CString;
 
 static mut LOGGER: Logger = Logger(None);

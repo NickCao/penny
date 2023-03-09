@@ -7,8 +7,10 @@ use std::ffi::{c_int, c_void};
 use std::ptr::null_mut;
 
 pub(super) extern "C" fn init(logger: ncclDebugLogger_t) -> ncclResult_t {
-    // logger::Logger::init(log::LevelFilter::Debug, logger).unwrap();
-    ncclResult_t::ncclSuccess
+    match Homa::init(logger) {
+        Ok(_) => ncclResult_t::ncclSuccess,
+        Err(err) => err.into(),
+    }
 }
 
 pub(super) unsafe extern "C" fn devices(ndev: *mut c_int) -> ncclResult_t {

@@ -36,7 +36,7 @@ pub unsafe extern "C" fn listen(
     handle: *mut c_void,
     listen_comm: *mut *mut c_void,
 ) -> ncclResult_t {
-    let handle = slice::from_raw_parts_mut(handle as *mut u8, NCCL_NET_HANDLE_MAXSIZE as usize);
+    let handle = slice::from_raw_parts_mut(handle.cast(), NCCL_NET_HANDLE_MAXSIZE as usize);
     let (comm, result) = homa::Homa::listen(dev, handle);
     *(listen_comm as *mut *mut ListenComm) = Box::into_raw(Box::new(comm));
     result
@@ -48,7 +48,7 @@ pub unsafe extern "C" fn connect(
     handle: *mut c_void,
     send_comm: *mut *mut c_void,
 ) -> ncclResult_t {
-    let handle = slice::from_raw_parts(handle as *const u8, NCCL_NET_HANDLE_MAXSIZE as usize);
+    let handle = slice::from_raw_parts(handle.cast(), NCCL_NET_HANDLE_MAXSIZE as usize);
     let (comm, result) = homa::Homa::connect(dev, handle);
     *(send_comm as *mut *mut SendComm) = Box::into_raw(Box::new(comm));
     result
@@ -59,7 +59,7 @@ pub unsafe extern "C" fn accept(
     listen_comm: *mut c_void,
     recv_comm: *mut *mut c_void,
 ) -> ncclResult_t {
-    let listen_comm = &mut *(listen_comm as *mut ListenComm);
+    let listen_comm = &mut *(listen_comm.cast());
     let (comm, result) = Homa::accept(listen_comm);
     *(recv_comm as *mut *mut RecvComm) = Box::into_raw(Box::new(comm));
     result
@@ -90,8 +90,8 @@ pub unsafe extern "C" fn isend(
     request: *mut *mut c_void,
 ) -> ncclResult_t {
     let size: usize = size.try_into().unwrap();
-    let data = unsafe { slice::from_raw_parts(data.cast(), size) };
-    let send_comm = unsafe { &mut *(send_comm as *mut SendComm) };
+    let data = slice::from_raw_parts(data.cast(), size);
+    let send_comm = &mut *(send_comm.cast());
     let (req, result) = Homa::isend(send_comm, data);
     if let Some(req) = req {
         *(request as *mut *mut Request) = Box::into_raw(Box::new(req));
@@ -115,7 +115,7 @@ pub unsafe extern "C" fn irecv(
     let data = slice::from_raw_parts(data, n);
     let sizes = slice::from_raw_parts(sizes, n);
     let buffer = slice::from_raw_parts_mut(data[0].cast(), sizes[0].try_into().unwrap());
-    let recv_comm = &mut *(recv_comm as *mut RecvComm);
+    let recv_comm = &mut *(recv_comm.cast());
     let (req, result) = Homa::irecv(recv_comm, buffer);
     *(request as *mut *mut Request) = Box::into_raw(Box::new(req));
     result
@@ -127,7 +127,7 @@ pub unsafe extern "C" fn test(
     done: *mut c_int,
     sizes: *mut c_int,
 ) -> ncclResult_t {
-    let request = &mut *(request as *mut Request);
+    let request = &mut *(request.cast());
     let done = &mut *done;
     let sizes = sizes.as_mut(); // FIXME: sizes is an array
     Homa::test(request, done, sizes)
@@ -135,19 +135,19 @@ pub unsafe extern "C" fn test(
 
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn close_send(send_comm: *mut c_void) -> ncclResult_t {
-    let comm = Box::from_raw(send_comm as *mut SendComm);
+    let comm = Box::from_raw(send_comm.cast());
     Homa::close_send(*comm)
 }
 
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn close_recv(recv_comm: *mut c_void) -> ncclResult_t {
-    let comm = Box::from_raw(recv_comm as *mut RecvComm);
+    let comm = Box::from_raw(recv_comm.cast());
     Homa::close_recv(*comm)
 }
 
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn close_listen(listen_comm: *mut c_void) -> ncclResult_t {
-    let comm = Box::from_raw(listen_comm as *mut ListenComm);
+    let comm = Box::from_raw(listen_comm.cast());
     Homa::close_listen(*comm)
 }
 

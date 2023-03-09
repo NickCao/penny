@@ -133,22 +133,19 @@ pub unsafe extern "C" fn test(
     Homa::test(request, done, sizes)
 }
 
-#[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn close_send(send_comm: *mut c_void) -> ncclResult_t {
-    let comm = Box::from_raw(send_comm.cast());
-    Homa::close_send(*comm)
+unsafe extern "C" fn close_send(send_comm: *mut c_void) -> ncclResult_t {
+    let send_comm = Box::from_raw(send_comm.cast());
+    Homa::close_send(*send_comm)
 }
 
-#[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn close_recv(recv_comm: *mut c_void) -> ncclResult_t {
-    let comm = Box::from_raw(recv_comm.cast());
-    Homa::close_recv(*comm)
+unsafe extern "C" fn close_recv(recv_comm: *mut c_void) -> ncclResult_t {
+    let recv_comm = Box::from_raw(recv_comm.cast());
+    Homa::close_recv(*recv_comm)
 }
 
-#[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn close_listen(listen_comm: *mut c_void) -> ncclResult_t {
-    let comm = Box::from_raw(listen_comm.cast());
-    Homa::close_listen(*comm)
+unsafe extern "C" fn close_listen(listen_comm: *mut c_void) -> ncclResult_t {
+    let listen_comm = Box::from_raw(listen_comm.cast());
+    Homa::close_listen(*listen_comm)
 }
 
 #[export_name = "ncclNetPlugin_v6"]

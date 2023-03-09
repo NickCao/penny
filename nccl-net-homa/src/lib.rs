@@ -141,16 +141,26 @@ unsafe extern "C" fn irecv(
     }
 }
 
-#[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn test(
+unsafe extern "C" fn test(
     request: *mut c_void,
     done: *mut c_int,
     sizes: *mut c_int,
 ) -> ncclResult_t {
     let request = &mut *(request.cast());
-    let done = &mut *done;
-    let sizes = sizes.as_mut(); // FIXME: sizes is an array
-    Homa::test(request, done, sizes)
+    match Homa::test(request) {
+        Ok(Some(size)) => {
+            *done = 1;
+            if let Some(sizes) = sizes.as_mut() {
+                *sizes = size
+            }
+            ncclResult_t::ncclSuccess
+        }
+        Ok(None) => {
+            *done = 0;
+            ncclResult_t::ncclSuccess
+        }
+        Err(err) => err.into(),
+    }
 }
 
 unsafe extern "C" fn close_send(send_comm: *mut c_void) -> ncclResult_t {

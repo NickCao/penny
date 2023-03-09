@@ -157,54 +157,37 @@ impl Homa {
         }))
     }
 
-    pub extern "C" fn test(
-        request: &mut Request,
-        done: &mut c_int,
-        sizes: Option<&mut c_int>,
-    ) -> ncclResult_t {
+    pub fn test(request: &mut Option<Request>) -> Result<Option<i32>> {
         match request {
-            Request::Send(req) => {
+            Some(Request::Send(req)) => {
                 match req
                     .comm
                     .socket
                     .recv(&mut [], HomaRecvmsgFlags::NONBLOCKING, req.id)
                 {
                     Ok((_, _, _, cookie)) => {
-                        *done = 1;
-                        if let Some(size) = sizes {
-                            *size = cookie.try_into().unwrap();
-                        }
-                        // FIXME: drop request handle
                         req.comm.inflight = false;
-                        ncclResult_t::ncclSuccess
+                        drop(request.take());
+                        return Ok(Some(cookie.try_into().unwrap()));
                     }
-                    Err(err) if err.kind() == ErrorKind::WouldBlock => {
-                        *done = 0;
-                        ncclResult_t::ncclSuccess
-                    }
-                    Err(err) => panic!("{}", err),
+                    Err(err) if err.kind() == ErrorKind::WouldBlock => Ok(None),
+                    Err(err) => Err(err)?,
                 }
             }
-            Request::Recv(req) => match req.comm.socket.recv(
+            Some(Request::Recv(req)) => match req.comm.socket.recv(
                 req.buffer,
                 HomaRecvmsgFlags::REQUEST | HomaRecvmsgFlags::NONBLOCKING,
                 0,
             ) {
                 Ok((length, addr, id, _)) => {
-                    *done = 1;
-                    if let Some(size) = sizes {
-                        *size = length.try_into().unwrap();
-                    }
-                    // FIXME: drop request handle
                     req.comm.socket.send(&[], addr, id, 0).unwrap();
-                    ncclResult_t::ncclSuccess
+                    drop(request.take());
+                    Ok(Some(length.try_into().unwrap()))
                 }
-                Err(err) if err.kind() == ErrorKind::WouldBlock => {
-                    *done = 0;
-                    ncclResult_t::ncclSuccess
-                }
-                Err(err) => panic!("{}", err),
+                Err(err) if err.kind() == ErrorKind::WouldBlock => Ok(None),
+                Err(err) => Err(err)?,
             },
+            None => Err(Error::Internal),
         }
     }
 

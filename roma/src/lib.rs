@@ -222,7 +222,7 @@ mod test {
 
                 rng.fill_bytes(&mut src);
 
-                let id = socket.send(&src, addr.into(), 0, 0).unwrap();
+                let id = socket.send(&src, addr, 0, 0).unwrap();
 
                 let (length, _, _, _) = socket
                     .recv(&mut buf, consts::HomaRecvmsgFlags::empty(), id)

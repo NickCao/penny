@@ -12,13 +12,13 @@ pub enum Error {
     InvalidArgument,
 }
 
-impl Into<ncclResult_t> for Error {
-    fn into(self) -> ncclResult_t {
-        match self {
-            Self::System(_) => ncclResult_t::ncclSystemError,
-            Self::Internal => ncclResult_t::ncclInternalError,
-            Self::InvalidUsage => ncclResult_t::ncclInvalidUsage,
-            Self::InvalidArgument => ncclResult_t::ncclInvalidArgument,
+impl From<Error> for ncclResult_t {
+    fn from(val: Error) -> Self {
+        match val {
+            Error::System(_) => ncclResult_t::ncclSystemError,
+            Error::Internal => ncclResult_t::ncclInternalError,
+            Error::InvalidUsage => ncclResult_t::ncclInvalidUsage,
+            Error::InvalidArgument => ncclResult_t::ncclInvalidArgument,
         }
     }
 }

@@ -41,11 +41,11 @@ pub struct RecvComm {
 pub struct Homa {}
 
 impl Homa {
-    pub fn devices() -> Result<usize> {
+    pub fn devices() -> Result<i32> {
         Ok(1)
     }
 
-    pub fn get_properties(dev: usize) -> Result<ncclNetProperties_v6_t> {
+    pub fn get_properties(dev: i32) -> Result<ncclNetProperties_v6_t> {
         if dev == 0 {
             let name = Box::leak(Box::new(CString::new("default").unwrap()));
             Ok(ncclNetProperties_v6_t {
@@ -64,7 +64,7 @@ impl Homa {
         }
     }
 
-    pub fn listen(dev: c_int, handle: &mut [u8]) -> (ListenComm, ncclResult_t) {
+    pub fn listen(dev: i32, handle: &mut [u8]) -> (ListenComm, ncclResult_t) {
         assert_eq!(dev, 0);
 
         let addr = if_addrs::get_if_addrs()

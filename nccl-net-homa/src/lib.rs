@@ -19,12 +19,8 @@ pub extern "C" fn init(logger: ncclDebugLogger_t) -> ncclResult_t {
 unsafe extern "C" fn devices(ndev: *mut c_int) -> ncclResult_t {
     match homa::Homa::devices() {
         Ok(n) => {
-            if let Ok(n) = n.try_into() {
-                *ndev = n;
-                ncclResult_t::ncclSuccess
-            } else {
-                ncclResult_t::ncclInternalError
-            }
+            *ndev = n;
+            ncclResult_t::ncclSuccess
         }
         Err(err) => err.into(),
     }
@@ -34,16 +30,12 @@ unsafe extern "C" fn get_properties(
     dev: c_int,
     props: *mut ncclNetProperties_v6_t,
 ) -> ncclResult_t {
-    if let Ok(dev) = dev.try_into() {
-        match homa::Homa::get_properties(dev) {
-            Ok(p) => {
-                *props = p;
-                ncclResult_t::ncclSuccess
-            }
-            Err(err) => err.into(),
+    match homa::Homa::get_properties(dev) {
+        Ok(p) => {
+            *props = p;
+            ncclResult_t::ncclSuccess
         }
-    } else {
-        ncclResult_t::ncclInternalError
+        Err(err) => err.into(),
     }
 }
 

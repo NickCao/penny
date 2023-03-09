@@ -94,8 +94,7 @@ extern "C" fn dereg_mr(_comm: *mut c_void, _mhandle: *mut c_void) -> ncclResult_
     ncclResult_t::ncclSuccess
 }
 
-#[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn isend(
+unsafe extern "C" fn isend(
     send_comm: *mut c_void,
     data: *mut c_void,
     size: c_int,
@@ -106,17 +105,20 @@ pub unsafe extern "C" fn isend(
     let size: usize = size.try_into().unwrap();
     let data = slice::from_raw_parts(data.cast(), size);
     let send_comm = &mut *(send_comm.cast());
-    let (req, result) = Homa::isend(send_comm, data);
-    if let Some(req) = req {
-        *(request as *mut *mut Request) = Box::into_raw(Box::new(req));
-    } else {
-        *(request as *mut *mut Request) = null_mut();
+    match Homa::isend(send_comm, data) {
+        Ok(Some(req)) => {
+            *(request.cast()) = Box::into_raw(Box::new(req));
+            ncclResult_t::ncclSuccess
+        }
+        Ok(None) => {
+            *request = null_mut();
+            ncclResult_t::ncclSuccess
+        }
+        Err(err) => err.into(),
     }
-    result
 }
 
-#[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn irecv(
+unsafe extern "C" fn irecv(
     recv_comm: *mut c_void,
     n: c_int,
     data: *mut *mut c_void,
@@ -128,11 +130,15 @@ pub unsafe extern "C" fn irecv(
     let n: usize = n.try_into().unwrap();
     let data = slice::from_raw_parts(data, n);
     let sizes = slice::from_raw_parts(sizes, n);
-    let buffer = slice::from_raw_parts_mut(data[0].cast(), sizes[0].try_into().unwrap());
+    let buf = slice::from_raw_parts_mut(data[0].cast(), sizes[0].try_into().unwrap());
     let recv_comm = &mut *(recv_comm.cast());
-    let (req, result) = Homa::irecv(recv_comm, buffer);
-    *(request as *mut *mut Request) = Box::into_raw(Box::new(req));
-    result
+    match Homa::irecv(recv_comm, buf) {
+        Ok(req) => {
+            *(request.cast()) = Box::into_raw(Box::new(req));
+            ncclResult_t::ncclSuccess
+        }
+        Err(err) => err.into(),
+    }
 }
 
 #[allow(clippy::missing_safety_doc)]

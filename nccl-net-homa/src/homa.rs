@@ -130,35 +130,31 @@ impl Homa {
     pub fn isend<'a, 'b>(
         send_comm: &'a mut SendComm,
         buf: &[u8],
-    ) -> (Option<Request<'a, 'b>>, ncclResult_t) {
+    ) -> Result<Option<Request<'a, 'b>>> {
         if send_comm.inflight {
-            return (None, ncclResult_t::ncclSuccess);
+            return Ok(None);
         }
+
         send_comm.inflight = true;
+
         let id = send_comm
             .socket
-            .send(buf, send_comm.remote, 0, buf.len().try_into().unwrap())
-            .unwrap();
-        (
-            Some(Request::Send(SendRequest {
-                comm: send_comm,
-                id,
-            })),
-            ncclResult_t::ncclSuccess,
-        )
+            .send(buf, send_comm.remote, 0, buf.len().try_into().unwrap())?;
+
+        Ok(Some(Request::Send(SendRequest {
+            comm: send_comm,
+            id,
+        })))
     }
 
     pub fn irecv<'a, 'b>(
         recv_comm: &'a mut RecvComm,
         buf: &'b mut [u8],
-    ) -> (Request<'a, 'b>, ncclResult_t) {
-        (
-            Request::Recv(RecvRequest {
-                buffer: buf,
-                comm: recv_comm,
-            }),
-            ncclResult_t::ncclSuccess,
-        )
+    ) -> Result<Request<'a, 'b>> {
+        Ok(Request::Recv(RecvRequest {
+            buffer: buf,
+            comm: recv_comm,
+        }))
     }
 
     pub extern "C" fn test(

@@ -143,8 +143,8 @@ pub extern "C" fn close_listen(listen_comm: *mut c_void) -> ncclResult_t {
     Homa::close_listen(*comm)
 }
 
-#[no_mangle]
-pub static mut ncclNetPlugin_v6: ncclNet_v6_t = ncclNet_v6_t {
+#[export_name = "ncclNetPlugin_v6"]
+static mut PLUGIN: ncclNet_v6_t = ncclNet_v6_t {
     name: b"homa\0".as_ptr().cast(),
     init: Some(init),
     devices: Some(devices),

@@ -234,15 +234,15 @@ impl Homa {
         }
     }
 
-    pub fn close_send(_send_comm: SendComm) -> ncclResult_t {
-        ncclResult_t::ncclSuccess
+    pub fn close_send(_send_comm: SendComm) -> Result<()> {
+        Ok(())
     }
 
-    pub fn close_recv(_recv_comm: RecvComm) -> ncclResult_t {
-        ncclResult_t::ncclSuccess
+    pub fn close_recv(_recv_comm: RecvComm) -> Result<()> {
+        Ok(())
     }
 
-    pub fn close_listen(_listen_comm: ListenComm) -> ncclResult_t {
-        ncclResult_t::ncclSuccess
+    pub fn close_listen(_listen_comm: ListenComm) -> Result<()> {
+        Ok(())
     }
 }

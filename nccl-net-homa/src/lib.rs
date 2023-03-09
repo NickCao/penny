@@ -15,10 +15,18 @@ pub extern "C" fn init(logger: ncclDebugLogger_t) -> ncclResult_t {
     ncclResult_t::ncclSuccess
 }
 
-#[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn devices(ndev: *mut c_int) -> ncclResult_t {
-    let ndev = &mut *ndev;
-    homa::Homa::devices(ndev)
+unsafe extern "C" fn devices(ndev: *mut c_int) -> ncclResult_t {
+    match homa::Homa::devices() {
+        Ok(n) => {
+            if let Ok(n) = n.try_into() {
+                *ndev = n;
+                ncclResult_t::ncclSuccess
+            } else {
+                ncclResult_t::ncclInternalError
+            }
+        }
+        Err(err) => err,
+    }
 }
 
 #[allow(clippy::missing_safety_doc)]

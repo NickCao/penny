@@ -31,10 +31,7 @@ fn main() {
     unsafe {
         let ret = init(Some(logger));
         assert_eq!(ret, ncclResult_t::ncclSuccess);
-        let mut ndev = 0;
-        let ret = devices(&mut ndev);
-        assert_eq!(ret, ncclResult_t::ncclSuccess);
-        for dev in 0..ndev {
+        for dev in 0..1 {
             let mut props = std::mem::zeroed();
             let ret = get_properties(dev, &mut props);
             assert_eq!(ret, ncclResult_t::ncclSuccess);

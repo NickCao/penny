@@ -13,20 +13,15 @@ pub mod logger;
 
 pub extern "C" fn init(logger: ncclDebugLogger_t) -> ncclResult_t {
     logger::Logger::init(log::LevelFilter::Debug, logger).unwrap();
-
-    log::debug!("init");
-
     ncclResult_t::ncclSuccess
 }
 
 pub extern "C" fn devices(ndev: *mut c_int) -> ncclResult_t {
-    log::debug!("devices");
     let ndev = unsafe { &mut *ndev };
     homa::Homa::devices(ndev)
 }
 
 pub extern "C" fn get_properties(dev: c_int, props: *mut ncclNetProperties_v6_t) -> ncclResult_t {
-    log::debug!("get_properties");
     let props = unsafe { &mut *props };
     homa::Homa::get_properties(dev, props)
 }
@@ -36,7 +31,6 @@ pub extern "C" fn listen(
     handle: *mut c_void,
     listen_comm: *mut *mut c_void,
 ) -> ncclResult_t {
-    log::debug!("listen");
     let handle =
         unsafe { slice::from_raw_parts_mut(handle as *mut u8, NCCL_NET_HANDLE_MAXSIZE as usize) };
     let (comm, result) = homa::Homa::listen(dev, handle);
@@ -49,7 +43,6 @@ pub extern "C" fn connect(
     handle: *mut c_void,
     send_comm: *mut *mut c_void,
 ) -> ncclResult_t {
-    log::debug!("connect");
     let handle =
         unsafe { slice::from_raw_parts(handle as *const u8, NCCL_NET_HANDLE_MAXSIZE as usize) };
     let (comm, result) = homa::Homa::connect(dev, handle);
@@ -58,7 +51,6 @@ pub extern "C" fn connect(
 }
 
 pub extern "C" fn accept(listen_comm: *mut c_void, recv_comm: *mut *mut c_void) -> ncclResult_t {
-    log::debug!("accept");
     let listen_comm = unsafe { &mut *(listen_comm as *mut ListenComm) };
     let (comm, result) = Homa::accept(listen_comm);
     unsafe { *(recv_comm as *mut *mut RecvComm) = Box::into_raw(Box::new(comm)) };
@@ -87,7 +79,6 @@ pub extern "C" fn isend(
     _mhandle: *mut c_void,
     request: *mut *mut c_void,
 ) -> ncclResult_t {
-    log::debug!("isend");
     let size: usize = size.try_into().unwrap();
     let data = unsafe { slice::from_raw_parts(data.cast(), size) };
     let send_comm = unsafe { &mut *(send_comm as *mut SendComm) };
@@ -109,7 +100,6 @@ pub extern "C" fn irecv(
     _mhandles: *mut *mut c_void,
     request: *mut *mut c_void,
 ) -> ncclResult_t {
-    log::debug!("irecv");
     let n: usize = n.try_into().unwrap();
     let data = unsafe { slice::from_raw_parts(data, n) };
     let sizes = unsafe { slice::from_raw_parts(sizes, n) };
@@ -121,7 +111,6 @@ pub extern "C" fn irecv(
 }
 
 pub extern "C" fn test(request: *mut c_void, done: *mut c_int, sizes: *mut c_int) -> ncclResult_t {
-    log::debug!("test");
     let request = unsafe { &mut *(request as *mut Request) };
     let done = unsafe { &mut *done };
     let sizes = unsafe { sizes.as_mut() }; // FIXME: sizes is an array

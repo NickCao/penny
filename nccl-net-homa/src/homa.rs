@@ -64,7 +64,7 @@ impl Homa {
         }
     }
 
-    pub fn listen(dev: i32, handle: &mut [u8]) -> (ListenComm, ncclResult_t) {
+    pub fn listen(dev: i32, handle: &mut [u8]) -> Result<ListenComm> {
         assert_eq!(dev, 0);
 
         let addr = if_addrs::get_if_addrs()
@@ -99,11 +99,9 @@ impl Homa {
         let hr = h.as_bytes_with_nul();
         handle[..hr.len()].copy_from_slice(hr);
 
-        let comm = ListenComm {
+        Ok(ListenComm {
             socket: Some(socket),
-        };
-
-        (comm, ncclResult_t::ncclSuccess)
+        })
     }
 
     pub fn connect(dev: c_int, handle: &[u8]) -> (SendComm, ncclResult_t) {

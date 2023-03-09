@@ -39,16 +39,19 @@ unsafe extern "C" fn get_properties(
     }
 }
 
-#[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn listen(
+unsafe extern "C" fn listen(
     dev: c_int,
     handle: *mut c_void,
     listen_comm: *mut *mut c_void,
 ) -> ncclResult_t {
     let handle = slice::from_raw_parts_mut(handle.cast(), NCCL_NET_HANDLE_MAXSIZE as usize);
-    let (comm, result) = homa::Homa::listen(dev, handle);
-    *(listen_comm as *mut *mut ListenComm) = Box::into_raw(Box::new(comm));
-    result
+    match homa::Homa::listen(dev, handle) {
+        Ok(comm) => {
+            *listen_comm.cast() = Box::into_raw(Box::new(comm));
+            ncclResult_t::ncclSuccess
+        }
+        Err(err) => err.into(),
+    }
 }
 
 #[allow(clippy::missing_safety_doc)]

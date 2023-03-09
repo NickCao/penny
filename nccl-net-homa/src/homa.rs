@@ -150,22 +150,17 @@ impl Homa {
         ncclResult_t::ncclSuccess
     }
 
-    pub fn isend<'a, 'b, 'c>(
+    pub fn isend<'a, 'b>(
         send_comm: &'a mut SendComm,
-        buf: &'b [u8],
-    ) -> (Option<Request<'a, 'c>>, ncclResult_t) {
+        buf: &[u8],
+    ) -> (Option<Request<'a, 'b>>, ncclResult_t) {
         if send_comm.inflight {
             return (None, ncclResult_t::ncclSuccess);
         }
         send_comm.inflight = true;
         let id = send_comm
             .socket
-            .send(
-                buf,
-                send_comm.remote,
-                0,
-                buf.len().try_into().unwrap(),
-            )
+            .send(buf, send_comm.remote, 0, buf.len().try_into().unwrap())
             .unwrap();
         (
             Some(Request::Send(SendRequest {

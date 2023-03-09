@@ -10,7 +10,7 @@ pub mod homa;
 pub mod logger;
 
 #[export_name = "ncclNetPlugin_v6"]
-static mut PLUGIN: ncclNet_v6_t = ncclNet_v6_t {
+pub static mut PLUGIN: ncclNet_v6_t = ncclNet_v6_t {
     name: b"homa\0".as_ptr().cast(),
     init: Some(binding::init),
     devices: Some(binding::devices),

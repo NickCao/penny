@@ -30,13 +30,21 @@ unsafe extern "C" fn devices(ndev: *mut c_int) -> ncclResult_t {
     }
 }
 
-#[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn get_properties(
+unsafe extern "C" fn get_properties(
     dev: c_int,
     props: *mut ncclNetProperties_v6_t,
 ) -> ncclResult_t {
-    let props = &mut *props;
-    homa::Homa::get_properties(dev, props)
+    if let Ok(dev) = dev.try_into() {
+        match homa::Homa::get_properties(dev) {
+            Ok(p) => {
+                *props = p;
+                ncclResult_t::ncclSuccess
+            }
+            Err(err) => err.into(),
+        }
+    } else {
+        ncclResult_t::ncclInternalError
+    }
 }
 
 #[allow(clippy::missing_safety_doc)]

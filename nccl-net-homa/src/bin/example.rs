@@ -31,11 +31,7 @@ fn main() {
     unsafe {
         let ret = init(Some(logger));
         assert_eq!(ret, ncclResult_t::ncclSuccess);
-        for dev in 0..1 {
-            let mut props = std::mem::zeroed();
-            let ret = get_properties(dev, &mut props);
-            assert_eq!(ret, ncclResult_t::ncclSuccess);
-        }
+
         let mut handle = [0u8; NCCL_NET_HANDLE_MAXSIZE as usize];
         let mut listen_comm: *mut c_void = null_mut();
         let ret = listen(0, handle.as_mut_ptr().cast(), &mut listen_comm);

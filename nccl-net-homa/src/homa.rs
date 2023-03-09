@@ -1,4 +1,4 @@
-use crate::error::Result;
+use crate::error::{Error, Result};
 use nccl_net_sys::*;
 use roma::{consts::HomaRecvmsgFlags, HomaSocket};
 use socket2::Domain;
@@ -44,10 +44,12 @@ impl Homa {
     pub fn devices() -> Result<usize> {
         Ok(1)
     }
-    pub fn get_properties(dev: c_int, props: &mut ncclNetProperties_v6_t) -> ncclResult_t {
+
+    pub fn get_properties(dev: usize) -> Result<ncclNetProperties_v6_t> {
         if dev == 0 {
-            *props = ncclNetProperties_v6_t {
-                name: "default\0".as_ptr().cast_mut().cast(),
+            let name = Box::leak(Box::new(CString::new("default").unwrap()));
+            Ok(ncclNetProperties_v6_t {
+                name: name.as_ptr().cast_mut(),
                 pciPath: null_mut(),
                 guid: 0,
                 ptrSupport: NCCL_PTR_HOST as i32,
@@ -56,11 +58,9 @@ impl Homa {
                 latency: 0.0,
                 maxComms: i32::MAX,
                 maxRecvs: 1,
-            };
-
-            ncclResult_t::ncclSuccess
+            })
         } else {
-            ncclResult_t::ncclInternalError
+            Err(Error::Internal)
         }
     }
 

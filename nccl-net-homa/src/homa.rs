@@ -173,7 +173,7 @@ impl Homa {
                 {
                     Ok((_, _, _, cookie)) => {
                         req.comm.inflight = false;
-                        drop(request.take());
+                        request.take();
                         Ok(Some(cookie.try_into().unwrap()))
                     }
                     Err(err) if err.kind() == ErrorKind::WouldBlock => Ok(None),
@@ -187,7 +187,7 @@ impl Homa {
             ) {
                 Ok((length, addr, id, _)) => {
                     req.comm.socket.send(&[], addr, id, 0).unwrap();
-                    drop(request.take());
+                    request.take();
                     Ok(Some(length.try_into().unwrap()))
                 }
                 Err(err) if err.kind() == ErrorKind::WouldBlock => Ok(None),

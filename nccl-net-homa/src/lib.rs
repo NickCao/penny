@@ -80,19 +80,18 @@ unsafe extern "C" fn accept(listen_comm: *mut c_void, recv_comm: *mut *mut c_voi
     }
 }
 
-#[allow(clippy::missing_safety_doc)]
 extern "C" fn reg_mr(
-    comm: *mut c_void,
-    data: *mut c_void,
-    size: c_int,
-    type_: c_int,
-    mhandle: *mut *mut c_void,
+    _comm: *mut c_void,
+    _data: *mut c_void,
+    _size: c_int,
+    _type_: c_int,
+    _mhandle: *mut *mut c_void,
 ) -> ncclResult_t {
-    Homa::reg_mr(comm, data, size, type_, mhandle)
+    ncclResult_t::ncclSuccess
 }
 
-extern "C" fn dereg_mr(comm: *mut c_void, mhandle: *mut c_void) -> ncclResult_t {
-    Homa::dereg_mr(comm, mhandle)
+extern "C" fn dereg_mr(_comm: *mut c_void, _mhandle: *mut c_void) -> ncclResult_t {
+    ncclResult_t::ncclSuccess
 }
 
 #[allow(clippy::missing_safety_doc)]

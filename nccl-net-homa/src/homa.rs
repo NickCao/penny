@@ -127,24 +127,6 @@ impl Homa {
         })
     }
 
-    pub fn reg_mr(
-        _comm: *mut c_void,
-        _data: *mut c_void,
-        _size: c_int,
-        type_: c_int,
-        _mhandle: *mut *mut c_void,
-    ) -> ncclResult_t {
-        if type_ != NCCL_PTR_HOST as i32 {
-            ncclResult_t::ncclInternalError
-        } else {
-            ncclResult_t::ncclSuccess
-        }
-    }
-
-    pub fn dereg_mr(_comm: *mut c_void, _mhandle: *mut c_void) -> ncclResult_t {
-        ncclResult_t::ncclSuccess
-    }
-
     pub fn isend<'a, 'b>(
         send_comm: &'a mut SendComm,
         buf: &[u8],

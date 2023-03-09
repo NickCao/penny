@@ -54,27 +54,30 @@ unsafe extern "C" fn listen(
     }
 }
 
-#[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn connect(
+unsafe extern "C" fn connect(
     dev: c_int,
     handle: *mut c_void,
     send_comm: *mut *mut c_void,
 ) -> ncclResult_t {
     let handle = slice::from_raw_parts(handle.cast(), NCCL_NET_HANDLE_MAXSIZE as usize);
-    let (comm, result) = homa::Homa::connect(dev, handle);
-    *(send_comm as *mut *mut SendComm) = Box::into_raw(Box::new(comm));
-    result
+    match homa::Homa::connect(dev, handle) {
+        Ok(comm) => {
+            *send_comm.cast() = Box::into_raw(Box::new(comm));
+            ncclResult_t::ncclSuccess
+        }
+        Err(err) => err.into(),
+    }
 }
 
-#[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn accept(
-    listen_comm: *mut c_void,
-    recv_comm: *mut *mut c_void,
-) -> ncclResult_t {
+unsafe extern "C" fn accept(listen_comm: *mut c_void, recv_comm: *mut *mut c_void) -> ncclResult_t {
     let listen_comm = &mut *(listen_comm.cast());
-    let (comm, result) = Homa::accept(listen_comm);
-    *(recv_comm as *mut *mut RecvComm) = Box::into_raw(Box::new(comm));
-    result
+    match homa::Homa::accept(listen_comm) {
+        Ok(comm) => {
+            *recv_comm.cast() = Box::into_raw(Box::new(comm));
+            ncclResult_t::ncclSuccess
+        }
+        Err(err) => err.into(),
+    }
 }
 
 #[allow(clippy::missing_safety_doc)]

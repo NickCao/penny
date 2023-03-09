@@ -104,7 +104,7 @@ impl Homa {
         })
     }
 
-    pub fn connect(dev: c_int, handle: &[u8]) -> (SendComm, ncclResult_t) {
+    pub fn connect(dev: c_int, handle: &[u8]) -> Result<SendComm> {
         assert_eq!(dev, 0);
 
         let handle = CStr::from_bytes_until_nul(handle)
@@ -113,20 +113,18 @@ impl Homa {
             .unwrap();
 
         let socket = HomaSocket::new(Domain::IPV4, 1000).unwrap();
-        let comm = SendComm {
+
+        Ok(SendComm {
             socket,
             remote: handle.parse().unwrap(),
             inflight: false,
-        };
-
-        (comm, ncclResult_t::ncclSuccess)
+        })
     }
 
-    pub fn accept(listen_comm: &mut ListenComm) -> (RecvComm, ncclResult_t) {
-        let comm = RecvComm {
+    pub fn accept(listen_comm: &mut ListenComm) -> Result<RecvComm> {
+        Ok(RecvComm {
             socket: listen_comm.socket.take().unwrap(),
-        };
-        (comm, ncclResult_t::ncclSuccess)
+        })
     }
 
     pub fn reg_mr(

@@ -1,3 +1,4 @@
+use crate::error::Result;
 use nccl_net_sys::*;
 use roma::{consts::HomaRecvmsgFlags, HomaSocket};
 use socket2::Domain;
@@ -40,7 +41,7 @@ pub struct RecvComm {
 pub struct Homa {}
 
 impl Homa {
-    pub fn devices() -> Result<usize, ncclResult_t> {
+    pub fn devices() -> Result<usize> {
         Ok(1)
     }
     pub fn get_properties(dev: c_int, props: &mut ncclNetProperties_v6_t) -> ncclResult_t {

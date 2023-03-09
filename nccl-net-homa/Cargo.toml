@@ -9,6 +9,7 @@ roma = { path = "../roma" }
 socket2 = "0.5.1"
 if-addrs = "0.10.1"
 log = "0.4.17"
+thiserror = "1.0.39"
 
 [lib]
 crate-type = ["cdylib", "lib"]

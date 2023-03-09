@@ -7,6 +7,7 @@ use nccl_net_sys::*;
 use std::ffi::{c_int, c_void};
 use std::ptr::null_mut;
 
+pub mod error;
 pub mod homa;
 pub mod logger;
 
@@ -25,7 +26,7 @@ unsafe extern "C" fn devices(ndev: *mut c_int) -> ncclResult_t {
                 ncclResult_t::ncclInternalError
             }
         }
-        Err(err) => err,
+        Err(err) => err.into(),
     }
 }
 

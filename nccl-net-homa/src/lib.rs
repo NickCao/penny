@@ -1,5 +1,6 @@
 #![feature(ip)]
 #![feature(cstr_from_bytes_until_nul)]
+#![feature(strict_provenance)]
 
 use crate::homa::*;
 use core::slice;

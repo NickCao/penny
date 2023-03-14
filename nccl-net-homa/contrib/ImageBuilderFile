@@ -3,5 +3,5 @@ FROM IMAGE:ubuntu_22_04_x64_20G_alibase_20221228.vhd
 RUN wget https://developer.download.nvidia.cn/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.0-1_all.deb \
   && dpkg -i cuda-keyring_1.0-1_all.deb
   && apt-get update -y \
-  && apt-get install -y linux-image-5.17.0-1028-oem linux-headers-5.17.0-1028-oem \
+  && apt-get install -y linux-image-oem-22.04c linux-headers-oem-22.04c \
      nvidia-driver-525-server nvidia-utils-525-server cuda-toolkit-11 python3-venv libnccl-dev libopenmpi-dev

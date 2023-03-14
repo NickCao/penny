@@ -4,4 +4,4 @@ RUN wget https://developer.download.nvidia.cn/compute/cuda/repos/ubuntu2204/x86_
   && dpkg -i cuda-keyring_1.0-1_all.deb \
   && apt-get update -y \
   && apt-get install -y linux-image-oem-22.04c linux-headers-oem-22.04c \
-     nvidia-driver-525-server nvidia-utils-525-server cuda-toolkit-11-8 python3-venv libnccl-dev libopenmpi-dev
+     nvidia-driver-525-server nvidia-utils-525-server cuda-toolkit-11-8 libcudnn8 python3-venv libnccl-dev=2.15.5-1+cuda11.8 libopenmpi-dev

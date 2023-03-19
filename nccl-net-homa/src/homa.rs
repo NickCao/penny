@@ -86,7 +86,7 @@ impl Homa {
             })
             .unwrap_or_else(|| IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)));
 
-        let socket = HomaSocket::new(Domain::IPV4, 1000).unwrap();
+        let socket = HomaSocket::new(Domain::IPV4, 20000).unwrap();
 
         socket
             .socket
@@ -118,7 +118,7 @@ impl Homa {
             .to_str()
             .unwrap();
 
-        let socket = HomaSocket::new(Domain::IPV4, 1000).unwrap();
+        let socket = HomaSocket::new(Domain::IPV4, 20000).unwrap();
 
         Ok(SendComm {
             socket,

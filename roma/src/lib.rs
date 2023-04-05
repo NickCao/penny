@@ -7,7 +7,7 @@ use socket2::{Domain, SockAddr, Socket, Type};
 use std::cmp::min;
 use std::collections::VecDeque;
 use std::ffi::c_int;
-use std::io::{Error, ErrorKind, IoSlice, Result};
+use std::io::{Error, ErrorKind, IoSlice, Result, Write};
 use std::mem::size_of_val;
 use std::net::SocketAddr;
 use std::os::fd::AsRawFd;
@@ -57,8 +57,8 @@ impl HomaSocket {
 
         let addr = SockAddr::from(addr);
 
-        let pad = vec![0];
-        let iov = vec![IoSlice::new(buf), IoSlice::new(&pad)];
+        let tag = [0u8; 1];
+        let iov = vec![IoSlice::new(buf), IoSlice::new(&tag)];
 
         let mut sendmsg_args = types::homa_sendmsg_args {
             id,
@@ -142,23 +142,19 @@ impl HomaSocket {
             return Err(Error::new(ErrorKind::OutOfMemory, "buffer too small"));
         }
 
+        let mut buf = &mut buf[..length - 1];
+        let mut vectored = vec![];
         for i in 0..recvmsg_args.num_bpages as usize {
-            let (len, last) = if i != recvmsg_args.num_bpages as usize - 1 {
-                (consts::HOMA_BPAGE_SIZE, 0)
-            } else {
-                (
-                    length - consts::HOMA_BPAGE_SIZE * (recvmsg_args.num_bpages as usize - 1),
-                    1,
-                )
-            };
             let offset = recvmsg_args.bpage_offsets[i];
+            self.backlog.push_back(offset);
             unsafe {
-                self.backlog.push_back(offset);
                 let data = self.buffer.as_ptr().offset(offset.try_into().unwrap());
-                buf[i * consts::HOMA_BPAGE_SIZE..i * consts::HOMA_BPAGE_SIZE + len - last]
-                    .copy_from_slice(slice::from_raw_parts(data, len - last));
+                let data = IoSlice::new(slice::from_raw_parts(data, consts::HOMA_BPAGE_SIZE));
+                vectored.push(data);
             }
         }
+        let len = buf.write_vectored(&mut vectored).unwrap();
+        assert_eq!(len, length - 1);
 
         let addr = unsafe { SockAddr::new(addr, size_of_val(&addr).try_into().unwrap()) };
 
